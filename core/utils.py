@@ -141,6 +141,15 @@ class PsqlQuery(PsqlAbstract):
         connect.commit()
         return cursor.fetchall()
 
+    def update(self, q, data=None):
+        self._update(query_=q, data=data)
+
+    @PsqlAbstract.session()
+    def _update(self, connect, cursor, query_=None, data=None):
+        cursor.execute(query_, data)
+        connect.commit()
+
+
     def delete(self, q, data=None):
         self._delete(query_=q, data=data)
 
