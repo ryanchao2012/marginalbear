@@ -1,0 +1,15 @@
+*.pyc
+*.ini
+*.log
+*.sql*
+data/
+build/
+.ipynb_checkpoints/
+__pycache__/
+migrations/
+pokearound/
+.DS_Store
+*.txt
+*.jl
+*.out
+*.swp
