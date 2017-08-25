@@ -109,3 +109,10 @@ class IP(models.Model):
     address = models.CharField(max_length=31, unique=True)
     netizen = models.ManyToManyField('Netizen', blank=True)
 
+
+class Association(models.Model):
+    wordp = models.ForeignKey('Vocabulary', on_delete=models.CASCADE)
+    wordc = models.ForeignKey('Vocabulary', on_delete=models.CASCADE)
+    pmi = models.FloatField(default=0.0, null=True, blank=True)
+    confidence = models.FloatField(default=0.0, null=True, blank=True)
+    tokenizer = models.CharField(max_length=31)

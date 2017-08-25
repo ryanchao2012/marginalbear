@@ -32,7 +32,7 @@ class Vocab(Word):
     stopword = False
 
     def __init__(self, word, pos='__unknown__', **kwargs):
-        Word.__init__(self, word, pos=pos)
+        super().__init__(word, pos=pos)
         for k, v in kwargs.items():
             if self.__getattribute__(k) is not None:
                 self.__setattr__(k, v)
