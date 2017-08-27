@@ -79,17 +79,16 @@ class RetrievalBase(PsqlQueryScript):
         SELECT * FROM pttcorpus_post WHERE id IN %s ORDER BY publish_date DESC;
     '''
 
-    def __init__(self, words, tokenizer_tag, query=None, logger_name='retrievalbase'):
-        self.words = words
+    def __init__(self, tokenizer_tag, query=None, logger_name='retrievalbase'):
         self.query = query
         self.tokenizer_tag = tokenizer_tag
         self.logger = logging.getLogger(logger_name)
 
-    def retrieve(self):
+    def retrieve(self, words):
         raise NotImplementedError
 
-    def query_vocab_by_words(self, relative_words=None):
-        words = list(self.words)
+    def query_vocab_by_words(self, w, relative_words=None):
+        words = list(w)
         if bool(relative_words):
             try:
                 words += list(relative_words)
@@ -162,6 +161,149 @@ class RetrievalBase(PsqlQueryScript):
 
         return comment, schema
 
+    def get_comment_obj(self, post_id):
+        comments, cmtschema = self.query_comment_by_post(post_id)
+        cmt_id = [cmt[cmtschema['id']] for cmt in comments]
+        cmtvocab, vschema = self.query_vocab_by_comment_id(cmt_id)
+        cmtvocab_dict = {
+            (v[vschema['word']], v[vschema['pos']], self.tokenizer_tag): v
+            for v in cmtvocab
+        }
+
+        query_comments = []
+        for idx, cmt in enumerate(comments):
+            unique_v = list({
+                (w, p, self.tokenizer_tag)
+                for w, p in zip(
+                    cmt[cmtschema['tokenized']].split(), cmt[cmtschema['grammar']].split()
+                )
+            })
+
+            doc_vocabs = [
+                Vocab(
+                    cmtvocab_dict[v][vschema['word']],
+                    pos=cmtvocab_dict[v][vschema['pos']],
+                    tokenizer=cmtvocab_dict[v][vschema['tokenizer']],
+                    postfreq=cmtvocab_dict[v][vschema['postfreq']],
+                    commentfreq=cmtvocab_dict[v][vschema['commentfreq']],
+                    quality=cmtvocab_dict[v][vschema['quality']],
+                    stopword=cmtvocab_dict[v][vschema['stopword']]
+                )
+                for v in unique_v if v in cmtvocab_dict
+            ]
+
+            query_comments.append(
+                Comment(
+                    doc_vocabs,
+                    self.tokenizer_tag,
+                    post_id=cmt[cmtschema['post_id']],
+                    quality=cmt[cmtschema['quality']],
+                    ctype=cmt[cmtschema['ctype']],
+                    category=cmt[cmtschema['category']],
+                    retrieval_count=cmt[cmtschema['retrieval_count']],
+                    floor=cmt[cmtschema['floor']],
+                    body=''.join(cmt[cmtschema['tokenized']].split())
+                )
+            )
+
+        return query_comments, cmt_id
+
+    def get_post_obj(self, vocab_id):
+        allpost_id = self.query_vocab2post(vocab_id)
+        posts_generator, pschema = self.query_post_by_id(allpost_id)
+
+        posts = []
+        for i, p in enumerate(posts_generator):
+            posts.append(p)
+            if i > self.max_query_post_num:
+                break
+        post_id = [p[pschema['id']] for p in posts]
+        pvocab, vschema = self.query_vocab_by_post_id(post_id)
+        pvocab_dict = {
+            (v[vschema['word']], v[vschema['pos']], self.tokenizer_tag): v
+            for v in pvocab
+        }
+        post_dict = {p[pschema['id']]: p for p in posts}
+        titles_generator, tschema = self.query_title_by_post(post_id)
+        titles = list(titles_generator)
+
+        query_posts = []
+        for tt in titles:
+            unique_v = list({
+                (w, p, self.tokenizer_tag)
+                for w, p in zip(
+                    tt[tschema['tokenized']].split(), tt[tschema['grammar']].split()
+                )
+            })
+
+            doc_vocabs = [
+                Vocab(
+                    pvocab_dict[v][vschema['word']],
+                    pos=pvocab_dict[v][vschema['pos']],
+                    tokenizer=pvocab_dict[v][vschema['tokenizer']],
+                    postfreq=pvocab_dict[v][vschema['postfreq']],
+                    commentfreq=pvocab_dict[v][vschema['commentfreq']],
+                    quality=pvocab_dict[v][vschema['quality']],
+                    stopword=pvocab_dict[v][vschema['stopword']]
+                )
+                for v in unique_v if v in pvocab_dict
+            ]
+            pid = tt[tschema['post_id']]
+            query_posts.append(
+                Post(
+                    doc_vocabs,
+                    self.tokenizer_tag,
+                    publish_date=post_dict[pid][pschema['publish_date']],
+                    quality=post_dict[pid][pschema['quality']],
+                    similarity_score=0.0,
+                    retrieval_count=tt[tschema['retrieval_count']],
+                    category=None,
+                    author=post_dict[pid][pschema['author_id']],
+                    post_id=post_dict[pid][pschema['id']],
+                    url=post_dict[pid][pschema['url']],
+                    body=''.join(tt[tschema['tokenized']].split())
+                )
+            )
+            p = query_posts[-1]
+        return query_posts, post_id
+
+    def get_vocab_obj(self, words):
+        qvocab, vschema = self.query_vocab_by_words(words)
+        query_vocabs = [
+            Vocab(
+                v[vschema['word']],
+                pos=v[vschema['pos']],
+                tokenizer=v[vschema['tokenizer']],
+                postfreq=v[vschema['postfreq']],
+                commentfreq=v[vschema['commentfreq']],
+                quality=v[vschema['quality']],
+                stopword=v[vschema['stopword']]
+            )
+            for v in qvocab
+        ]
+
+        vocab_id = [
+            v[vschema['id']]
+            for v in qvocab
+            if not (v[vschema['stopword']]) and
+            v[vschema['postfreq']] < self.max_vocab_postfreq
+        ]
+
+        return query_vocabs, vocab_id
+
+    def ranking(self, rank, target, top_num, threshold=0.0):
+        idx_ranking = np.asarray(rank).argsort()[::-1]
+        top_results = []
+        max_rank = max(rank)
+        scores = []
+        for m, idx in enumerate(idx_ranking):
+            if m > top_num or (rank[idx] / max_rank) < threshold:
+                break
+            top_results.append(target[idx])
+            scores.append(rank[idx])
+
+        return top_results, scores
+
 
 class RetrievalJaccard(RetrievalBase):
     """
@@ -170,6 +312,9 @@ class RetrievalJaccard(RetrievalBase):
     max_top_post_num = 10
     max_top_comment_num = 20
     similarity_ranking_threshold = 0.9
+
+    def __call__(self, words):
+        return self.retrieve(words)
 
     def _get_comment_obj(self, post_id):
         comments, cmtschema = self.query_comment_by_post(post_id)
@@ -277,8 +422,8 @@ class RetrievalJaccard(RetrievalBase):
             p = query_posts[-1]
         return query_posts, post_id
 
-    def _get_query_vocab_obj(self):
-        qvocab, vschema = self.query_vocab_by_words()
+    def _get_query_vocab_obj(self, words):
+        qvocab, vschema = self.query_vocab_by_words(words)
         query_vocabs = [
             Vocab(
                 v[vschema['word']],
@@ -314,13 +459,13 @@ class RetrievalJaccard(RetrievalBase):
 
         return top_results, scores
 
-    def retrieve(self):
+    def retrieve(self, words):
         tic = time.time()
-        query_vocabs, vocab_id = self._get_query_vocab_obj()
+        query_vocabs, vocab_id = self._get_query_vocab_obj(words)
         self.logger.info('Elapsed time @query_vocabs: {:.2f}'.format(time.time() - tic))
         tic = time.time()
         query_posts, _ = self._get_post_obj(vocab_id)
-        print('@@@', 'query_posts', len(query_posts))
+        # print('@@@', 'query_posts', len(query_posts))
         self.logger.info('Elapsed time @query_posts: {:.2f}'.format(time.time() - tic))
         tic = time.time()
         post_score = [jaccard_similarity(query_vocabs, p.vocabs) for p in query_posts]
@@ -328,14 +473,14 @@ class RetrievalJaccard(RetrievalBase):
         self.logger.info('Elapsed time @calculate_post_similarity: {:.2f}'.format(time.time() - tic))
 
         top_posts, top_post_scores = self._ranking(post_score, query_posts, self.max_top_post_num, self.similarity_ranking_threshold)
-        [print('{:.2f}'.format(score), p.body, p.url) for p, score in zip(top_posts, top_post_scores)]
-        print('#####')
+        # [print('{:.2f}'.format(score), p.body, p.url) for p, score in zip(top_posts, top_post_scores)]
+        # print('#####')
         post_id = [p.post_id for p in top_posts]
         post_score_dict = {p.post_id: p.similarity_score for p in top_posts}
         tic = time.time()
         query_comments, _ = self._get_comment_obj(post_id)
         self.logger.info('Elapsed time @query_comments: {:.2f}'.format(time.time() - tic))
-        print('@@@', 'query_comments', len(query_comments))
+        # print('@@@', 'query_comments', len(query_comments))
 
         '''
             So now we have query_vocabs(Vocab),
@@ -350,7 +495,7 @@ class RetrievalJaccard(RetrievalBase):
             cmt_vocab.extend(vocab)
 
         docfreq = Counter(cmt_vocab)
-        # print(docfreq)
+
         # Calculate total score
         cmt_score = []
         w1, w2, w3, w4 = 0.1, 20.0, 0.01, 2.0
@@ -368,8 +513,8 @@ class RetrievalJaccard(RetrievalBase):
                 w4 * (cmt.ctype == 'url')
             )
         top_comments, top_comment_scores = self._ranking(cmt_score, query_comments, self.max_top_comment_num)
-        print('######')
-        [print('{:.2f}'.format(score), cmt.body) for cmt, score in zip(top_comments, top_comment_scores)]
+        # print('######')
+        # [print('{:.2f}'.format(score), cmt.body) for cmt, score in zip(top_comments, top_comment_scores)]
         random.seed(time.time())
         return random.choice(top_comments)
 

@@ -1,13 +1,6 @@
 import jieba
 import jieba.posseg as pseg
-
-
-class Word(dict):
-
-    def __init__(self, word, pos='__unknown__'):
-        dict.__init__(self, word=word, pos=pos)
-        self.word = word
-        self.pos = pos
+from .utils import Word
 
 
 class TokenizerNotExistException(Exception):
@@ -25,6 +18,9 @@ class Tokenizer(object):
 
 class JiebaTokenizer(Tokenizer):
 
+    def __call__(self, sentence):
+        return self.cut(sentence)
+
     def cut(self, sentence, pos=True):
         if pos:
             pairs = pseg.cut(sentence)
@@ -34,6 +30,6 @@ class JiebaTokenizer(Tokenizer):
                 w = p.word.strip()
                 if len(w) > 0:
                     tok.append(Word(w, p.flag))
-            return tuple(tok)
+            return tok
         else:
-            return tuple([Word(w.strip()) for w in jieba.cut(sentence) if bool(w.strip())])
+            return [Word(w.strip()) for w in jieba.cut(sentence) if bool(w.strip())]
