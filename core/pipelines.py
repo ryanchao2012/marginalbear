@@ -17,14 +17,13 @@ class OkPipeline(object):
         for node in self.pipe:
             in_ls, out_ls, fn = self._format_node(node)
 
-            self.logger.info(out_ls)
+            self.logger.info('Add attributes: {}'.format(out_ls))
             in_attr = [self._rget_attr(self.obj, a) for a in in_ls]
             out_ = fn(*in_attr)
             if isinstance(out_, tuple):
                 out = list(out_)
             else:
                 out = [out_]
-            self.logger.info(out_)
             if len(out) != len(out_ls):
                 raise AssertionError('Output lengths don\'t match.')
 

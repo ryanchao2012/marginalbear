@@ -21,7 +21,7 @@ PsqlAbstract.set_database_info(
 
 
 if __name__ == '__main__':
-    q = QBag(Query('安安ＡＢＣ？ＺＸＣ'))
+    q = QBag(Query('放假肥宅都在做什麼？'))
     p = OkPipeline(
         q, ['query.query'],
         [
@@ -33,4 +33,5 @@ if __name__ == '__main__':
     )
 
     result = p.run()
-    # print(result)
+    print(result.body)
+    print(q.comment.body)

@@ -18,7 +18,7 @@ PsqlAbstract.set_database_info(
 )
 
 
-ingester = PsqlIngester('jieba')
+ingester = PsqlIngester('corenlp')
 
 
 logger = logging.getLogger('okgotparser')
@@ -107,9 +107,8 @@ class OkbotCommentParser(BatchParser):
 
 if __name__ == '__main__':
     start = time.time()
-    post_parser = OkbotPostParser('formatted.post.jieba.jl')
-    comment_parser = OkbotCommentParser('formatted.comment.jieba.jl')
-    ingester = PsqlIngester('jieba')
+    post_parser = OkbotPostParser('tokenize_by_corenlp/formatted.post.corenlp.jl')
+    comment_parser = OkbotCommentParser('tokenize_by_corenlp/formatted.comment.corenlp.jl')
 
     consumed = 0
     for batch_post in post_parser.batch_parse(batch_size=100):

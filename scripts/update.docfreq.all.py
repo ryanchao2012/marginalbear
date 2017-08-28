@@ -18,7 +18,6 @@ PsqlAbstract.set_database_info(
 )
 
 
-
 ingester = PsqlIngester('jieba')
 
 
@@ -43,14 +42,10 @@ def query_vocab_id(batch_size=1000):
             yield batch
             batch = []
     yield batch
-
     
-
-
 
 if __name__ == '__main__':
     start = time.time()
-    ingester = PsqlIngester('jieba')
 
     consumed = 0
     for vocab_ids in query_vocab_id(batch_size=1000):
@@ -65,5 +60,4 @@ if __name__ == '__main__':
             consumed += len(vocab_ids)
             logger.info('{} vocab\'s docfreq are updated'.format(consumed))
     print('Elapsed time @update_docfreq: {:.2f}sec.'.format(time.time() - start))
-
 
