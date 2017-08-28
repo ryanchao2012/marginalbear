@@ -13,3 +13,4 @@ pokearound/
 *.jl
 *.out
 *.swp
+.cache
