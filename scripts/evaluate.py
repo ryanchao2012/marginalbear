@@ -50,9 +50,12 @@ if __name__ == '__main__':
         p = OkPipeline(
             q, ['query.query'],
             [
-                (SplitTokenizer(),),
+                ((['query.query'], ['query.topic_words']), SplitTokenizer(),),
+                ((['query.topic_words'], ['ranked_comments']), RetrievalJaccard('jieba'),),
+                ((['ranked_comments'], ['predict_words_ls']), extract_words,),
+                ((['query.topic_words', 'predict_words_ls'], ['ndcg_score']), MetricApiWrapper('http://localhost:1234/doc2vec'),),
             ]
         )
         result = p.run()
         break
-    # print(result)
+    print(result)
