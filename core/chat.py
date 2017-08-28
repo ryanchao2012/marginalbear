@@ -79,8 +79,8 @@ class RetrievalBase(PsqlQueryScript):
         SELECT * FROM pttcorpus_post WHERE id IN %s ORDER BY publish_date DESC;
     '''
 
-    def __init__(self, tokenizer_tag, query=None, logger_name='retrievalbase'):
-        self.query = query
+    def __init__(self, tokenizer_tag, excluded_post_ids=[], logger_name='retrievalbase'):
+        self.excluded_post_ids = excluded_post_ids
         self.tokenizer_tag = tokenizer_tag
         self.logger = logging.getLogger(logger_name)
 
@@ -162,6 +162,8 @@ class RetrievalBase(PsqlQueryScript):
         return comment, schema
 
     def get_comment_obj(self, post_id):
+        if not bool(post_id):
+            return [], []
         comments, cmtschema = self.query_comment_by_post(post_id)
         cmt_id = [cmt[cmtschema['id']] for cmt in comments]
         cmtvocab, vschema = self.query_vocab_by_comment_id(cmt_id)
@@ -209,15 +211,20 @@ class RetrievalBase(PsqlQueryScript):
         return query_comments, cmt_id
 
     def get_post_obj(self, vocab_id):
+        if not bool(vocab_id):
+            return [], []
         allpost_id = self.query_vocab2post(vocab_id)
         posts_generator, pschema = self.query_post_by_id(allpost_id)
 
         posts = []
         for i, p in enumerate(posts_generator):
-            posts.append(p)
+            if p[pschema['id']] not in self.excluded_post_ids:
+                posts.append(p)
             if i > self.max_query_post_num:
                 break
         post_id = [p[pschema['id']] for p in posts]
+        if not bool(post_id):
+            return [], []
         pvocab, vschema = self.query_vocab_by_post_id(post_id)
         pvocab_dict = {
             (v[vschema['word']], v[vschema['pos']], self.tokenizer_tag): v
@@ -314,17 +321,44 @@ class RetrievalEvaluate(RetrievalBase):
     def __call__(self, words):
         return self.retrieve(words)
 
-    def retrieve(self, words):
+    def get_top_posts(self, words):
+        if not bool(words):
+            return []
+        tic = time.time()
         query_vocabs, vocab_id = self.get_vocab_obj(words)
-        query_posts, _ = self.get_post_obj(vocab_id)
+        self.logger.info('Elapsed time @query_vocabs: {:.2f}'.format(time.time() - tic))
+        tic = time.time()
+        query_posts, pschema = self.get_post_obj(vocab_id)
+        if not bool(query_posts):
+            return []
+        self.logger.info('Elapsed time @query_posts: {:.2f}'.format(time.time() - tic))
+        tic = time.time()
 
         post_score = [jaccard_similarity(query_vocabs, p.vocabs) for p in query_posts]
-        max_post_score = max(post_score)
 
         top_posts, top_post_scores = self.ranking(post_score, query_posts, self.max_top_post_num, self.similarity_ranking_threshold)
+
+#        if max(top_post_scores) < 0.7:
+#            return []
+
+        for post, score in zip(top_posts, top_post_scores):
+            post.similarity_score = score
+
+            self.logger.warning('Retrieved: [{:.2f}] {}'.format(post.similarity_score, post.body))
+
+        return top_posts
+
+    def get_top_comments(self, top_posts):
+        if not bool(top_posts):
+            return []
+        post_score = [p.similarity_score for p in top_posts]
+        max_post_score = max(post_score)
+
+        tic = time.time()
         post_id = [p.post_id for p in top_posts]
         post_score_dict = {p.post_id: p.similarity_score for p in top_posts}
         query_comments_, _ = self.get_comment_obj(post_id)
+        self.logger.info('Elapsed time @query_comments: {:.2f}'.format(time.time() - tic))
         query_comments = [cmt for cmt in query_comments_ if cmt.ctype == 'text']
 
         '''
@@ -356,7 +390,17 @@ class RetrievalEvaluate(RetrievalBase):
                 w2 * post_score_dict[cmt.post_id] / max_post_score +
                 w3 * len(cmt.vocabs)
             )
+
         top_comments, top_comment_scores = self.ranking(cmt_score, query_comments, self.max_top_comment_num)
+        for cmt, score in zip(top_comments, top_comment_scores):
+            cmt.score = score
+        
+        return top_comments
+
+    def retrieve(self, words):
+
+        top_posts = self.get_top_posts(words)
+        top_comments = self.get_top_comments(top_posts)
 
         return top_comments
 

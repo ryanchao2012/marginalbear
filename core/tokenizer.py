@@ -41,4 +41,9 @@ class SplitTokenizer(Tokenizer):
         return self.cut(sentence)
 
     def cut(self, sentence):
-        return [Word(w.strip()) for w in sentence.split() if bool(w)]
+        words = []
+        for mix in sentence.split():
+            idx = mix.rfind(':')
+            w, p = mix[:idx], mix[idx+1:]
+            words.append(Word(w, p))
+        return words

@@ -3,7 +3,7 @@ import requests
 import math
 
 
-def doc2vec_ndcg(topic_words, predict_words_ls, model, k=30, ideal=0.9, ave=1, step=100):
+def doc2vec_ndcg(topic_words, predict_words_ls, model, k=30, ideal=1.0, ave=1, step=100):
     """Document-to-vector NDCG."""
     if len(predict_words_ls) <= 0:
         return 0.0
@@ -44,8 +44,8 @@ class MetricApiWrapper(object):
         topic_words_ = [w.word for w in topic_words]
         predict_words_ls_ = [[w.word for w in words] for words in predict_words_ls]
 
-        payload = dict(topic_words=topic_words_, predict_words_ls=predict_words_ls_)
+        data = dict(topic_words=topic_words_, predict_words_ls=predict_words_ls_)
 
-        response = requests.post(self.url, payload=payload)
+        response = requests.post(self.url, data=data)
 
         return response

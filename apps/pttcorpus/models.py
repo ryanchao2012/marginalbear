@@ -111,8 +111,8 @@ class IP(models.Model):
 
 
 class Association(models.Model):
-    wordp = models.ForeignKey('Vocabulary', on_delete=models.CASCADE)
-    wordc = models.ForeignKey('Vocabulary', on_delete=models.CASCADE)
+    wordp = models.ForeignKey('Vocabulary', on_delete=models.CASCADE, related_name='wordpost')
+    wordc = models.ForeignKey('Vocabulary', on_delete=models.CASCADE, related_name='wordcomment')
     pmi = models.FloatField(default=0.0, null=True, blank=True)
     confidence = models.FloatField(default=0.0, null=True, blank=True)
     tokenizer = models.CharField(max_length=31)

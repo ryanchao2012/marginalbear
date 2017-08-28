@@ -27,7 +27,6 @@ class QBag(object):
     def __init__(self, query):
         self.query = query
 
-
 class Query(object):
 
     def __init__(self, stentence, ctype='text'):
