@@ -305,6 +305,62 @@ class RetrievalBase(PsqlQueryScript):
         return top_results, scores
 
 
+class RetrievalEvaluate(RetrievalBase):
+
+    max_top_post_num = 10
+    max_top_comment_num = 50
+    similarity_ranking_threshold = 0.9
+
+    def __call__(self, words):
+        return self.retrieve(words)
+
+    def retrieve(self, words):
+        query_vocabs, vocab_id = self.get_vocab_obj(words)
+        query_posts, _ = self.get_post_obj(vocab_id)
+
+        post_score = [jaccard_similarity(query_vocabs, p.vocabs) for p in query_posts]
+        max_post_score = max(post_score)
+
+        top_posts, top_post_scores = self.ranking(post_score, query_posts, self.max_top_post_num, self.similarity_ranking_threshold)
+        post_id = [p.post_id for p in top_posts]
+        post_score_dict = {p.post_id: p.similarity_score for p in top_posts}
+        query_comments_, _ = self.get_comment_obj(post_id)
+        query_comments = [cmt for cmt in query_comments_ if cmt.ctype == 'text']
+
+        '''
+            So now we have query_vocabs(Vocab),
+                           top_posts(list of Post) and
+                           query_comments(list of Comment)
+        '''
+
+        # Calculate document frequency
+        cmt_vocab = []
+        for cmt in query_comments:
+            vocab = list({(v.word, v.pos) for v in cmt.vocabs if v.pos[0] == 'n' or v.pos[0] == 'v'})
+            cmt_vocab.extend(vocab)
+
+        docfreq = Counter(cmt_vocab)
+
+        # Calculate total score
+        cmt_score = []
+        w1, w2, w3 = 0.1, 20.0, 0.01
+        for cmt in query_comments:
+            doc_score = sum([
+                docfreq[(v.word, v.pos)] - 1
+                for v in cmt.vocabs
+                if (v.word, v.pos) in docfreq
+            ]) / (len(cmt.vocabs) + 1.0)
+
+            cmt_score.append(
+                w1 * doc_score +
+                w2 * post_score_dict[cmt.post_id] / max_post_score +
+                w3 * len(cmt.vocabs)
+            )
+        top_comments, top_comment_scores = self.ranking(cmt_score, query_comments, self.max_top_comment_num)
+
+        return top_comments
+
+
 class RetrievalJaccard(RetrievalBase):
     """
 
