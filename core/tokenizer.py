@@ -33,3 +33,12 @@ class JiebaTokenizer(Tokenizer):
             return tok
         else:
             return [Word(w.strip()) for w in jieba.cut(sentence) if bool(w.strip())]
+
+
+class SplitTokenizer(Tokenizer):
+
+    def __call__(self, sentence):
+        return self.cut(sentence)
+
+    def cut(self, sentence):
+        return [Word(w.strip()) for w in sentence.split() if bool(w)]

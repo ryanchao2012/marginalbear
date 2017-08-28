@@ -9,7 +9,7 @@ URL_REGEX = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0
 
 class OkLogger(object):
 
-    def __init__(self, name, level=logging.INFO, fmt='%(asctime)s %(levelname)s: %(message)s'):
+    def __init__(self, name, level=logging.INFO, fmt='[%(name)s] %(asctime)s %(levelname)s: %(message)s'):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         ch = logging.StreamHandler()

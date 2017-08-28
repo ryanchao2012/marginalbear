@@ -465,7 +465,7 @@ class RetrievalJaccard(RetrievalBase):
         self.logger.info('Elapsed time @query_vocabs: {:.2f}'.format(time.time() - tic))
         tic = time.time()
         query_posts, _ = self._get_post_obj(vocab_id)
-        # print('@@@', 'query_posts', len(query_posts))
+
         self.logger.info('Elapsed time @query_posts: {:.2f}'.format(time.time() - tic))
         tic = time.time()
         post_score = [jaccard_similarity(query_vocabs, p.vocabs) for p in query_posts]
@@ -473,14 +473,12 @@ class RetrievalJaccard(RetrievalBase):
         self.logger.info('Elapsed time @calculate_post_similarity: {:.2f}'.format(time.time() - tic))
 
         top_posts, top_post_scores = self._ranking(post_score, query_posts, self.max_top_post_num, self.similarity_ranking_threshold)
-        # [print('{:.2f}'.format(score), p.body, p.url) for p, score in zip(top_posts, top_post_scores)]
-        # print('#####')
+
         post_id = [p.post_id for p in top_posts]
         post_score_dict = {p.post_id: p.similarity_score for p in top_posts}
         tic = time.time()
         query_comments, _ = self._get_comment_obj(post_id)
         self.logger.info('Elapsed time @query_comments: {:.2f}'.format(time.time() - tic))
-        # print('@@@', 'query_comments', len(query_comments))
 
         '''
             So now we have query_vocabs(Vocab),
@@ -513,51 +511,50 @@ class RetrievalJaccard(RetrievalBase):
                 w4 * (cmt.ctype == 'url')
             )
         top_comments, top_comment_scores = self._ranking(cmt_score, query_comments, self.max_top_comment_num)
-        # print('######')
-        # [print('{:.2f}'.format(score), cmt.body) for cmt, score in zip(top_comments, top_comment_scores)]
+
         random.seed(time.time())
         return random.choice(top_comments)
 
 
-class RetrievalBot(RetrievalBase, PsqlChatCacheScript):
-    disclaimer = None
-    activate_key = None
-    activate_response = []
+# class RetrievalBot(RetrievalBase, PsqlChatCacheScript):
+#     disclaimer = None
+#     activate_key = None
+#     activate_response = []
 
-    repeat_time = 10
-    repeat_cold_interval = 60
-    repeat_response = []
+#     repeat_time = 10
+#     repeat_cold_interval = 60
+#     repeat_response = []
 
-    longquery_limit = 40
-    longquery_response = []
+#     longquery_limit = 40
+#     longquery_response = []
 
-    kickout_key = []
-    kickout_response = []
+#     kickout_key = []
+#     kickout_response = []
 
-    def __init__(self, query, rule_orm, **kwargs):
-        super(RetrievalBot, self).__init__(query, kwargs)
+#     def __init__(self, query, rule_orm, **kwargs):
+#         super(RetrievalBot, self).__init__(query, kwargs)
 
-        if bool(rule_orm):
-            if not bool(RetrievalBot.disclaimer):
-                disclaimer = rule_orm.objects.get(rtype='disclaimer')
-                RetrievalBot.disclaimer = disclaimer.response
+#         if bool(rule_orm):
+#             if not bool(RetrievalBot.disclaimer):
+#                 disclaimer = rule_orm.objects.get(rtype='disclaimer')
+#                 RetrievalBot.disclaimer = disclaimer.response
 
-            if not bool(RetrievalBot.repeat_response):
-                repeat = rule_orm.objects.get(rtype='repeat')
-                RetrievalBot.repeat_response = [r.strip() for r in repeat.response.split('\n')]
-                RetrievalBot.repeat_time = int(repeat.keyword)
+#             if not bool(RetrievalBot.repeat_response):
+#                 repeat = rule_orm.objects.get(rtype='repeat')
+#                 RetrievalBot.repeat_response = [r.strip() for r in repeat.response.split('\n')]
+#                 RetrievalBot.repeat_time = int(repeat.keyword)
 
-            if not(bool(RetrievalBot.kickout_key) and bool(RetrievalBot.kickout_response)):
-                kickout = rule_orm.objects.get(rtype='kickout')
-                RetrievalBot.kickout_key = [k.strip() for k in kickout.keyword.split(',')]
-                RetrievalBot.kickout_response = [r.strip() for r in kickout.response.split('\n')]
+#             if not(bool(RetrievalBot.kickout_key) and bool(RetrievalBot.kickout_response)):
+#                 kickout = rule_orm.objects.get(rtype='kickout')
+#                 RetrievalBot.kickout_key = [k.strip() for k in kickout.keyword.split(',')]
+#                 RetrievalBot.kickout_response = [r.strip() for r in kickout.response.split('\n')]
 
-            if not (bool(RetrievalBot.activate_key) and bool(RetrievalBot.activate_response)):
-                activate = rule_orm.objects.get(rtype='activate')
-                RetrievalBot.activate_key = [k.strip() for k in activate.keyword.split(',')]
-                RetrievalBot.activate_response = [r.strip() for r in activate.response.split('\n')]
+#             if not (bool(RetrievalBot.activate_key) and bool(RetrievalBot.activate_response)):
+#                 activate = rule_orm.objects.get(rtype='activate')
+#                 RetrievalBot.activate_key = [k.strip() for k in activate.keyword.split(',')]
+#                 RetrievalBot.activate_response = [r.strip() for r in activate.response.split('\n')]
 
-            if not bool(RetrievalBot.longquery_response):
-                longquery = rule_orm.objects.get(rtype='longquery')
-                RetrievalBot.longquery_limit = int(longquery.keyword)
-                RetrievalBot.longquery_response = [r.strip() for r in longquery.response.split('\n')]
+#             if not bool(RetrievalBot.longquery_response):
+#                 longquery = rule_orm.objects.get(rtype='longquery')
+#                 RetrievalBot.longquery_limit = int(longquery.keyword)
+#                 RetrievalBot.longquery_response = [r.strip() for r in longquery.response.split('\n')]
