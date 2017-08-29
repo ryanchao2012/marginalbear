@@ -10,7 +10,10 @@ from core.utils import (
 )
 from core.chat import RetrievalEvaluate
 from core.pipelines import OkPipeline
-from core.tokenizer import SplitTokenizer
+from core.tokenizer import (
+    SplitTokenizer,
+    JiebaPosWeight
+)
 from configparser import RawConfigParser
 from core.metrics import MetricApiWrapper
 
@@ -23,7 +26,8 @@ PsqlAbstract.set_database_info(
     config_parser.get('global', 'dbpassword')
 )
 
-oklogger = OkLogger('evaluate', level=logging.WARNING)
+oklogger = OkLogger('evaluate', level=logging.INFO)
+oklogger2 = OkLogger('retrieve', level=logging.WARNING)
 
 
 query_post_sql = '''
@@ -37,6 +41,7 @@ query_random_post_sql = '''
     SELECT id FROM pttcorpus_post TABLESAMPLE SYSTEM(1);
 '''
 
+
 def generate_random_post(ref):
     psql = PsqlQuery()
 
@@ -44,15 +49,16 @@ def generate_random_post(ref):
 
     return [p[0] for p in posts][:len(ref)]
 
+
 def shuffle_comments(comments):
     random.shuffle(comments)
     return comments
 
 
-
 def extract_words(comments):
     if not bool(comments):
         return []
+
     def extract(cmt):
         return [v for v in cmt.vocabs]
 
@@ -70,32 +76,58 @@ if __name__ == '__main__':
         titles, tschema = psql.query_all(
             query_title_sql, dict(pid=p[pschema['id']], tok='jieba')
         )
-        oklogger.logger.warning(p[pschema['title_raw']])
-#        retriever = RetrievalEvaluate('jieba', logger_name='evaluate')
-        retriever = RetrievalEvaluate('jieba', excluded_post_ids=[p[pschema['id']]],  logger_name='evaluate')
-        query = ' '.join(['{}:{}'.format(w, p) for w, p in zip(titles[0][tschema['tokenized']].split(), titles[0][tschema['grammar']].split()) ])
 
-        q = QBag(Query(query))
-        p = OkPipeline(
-            q, ['query.query'],
+        basic_retriever = RetrievalEvaluate(
+            'jieba',
+            excluded_post_ids=[p[pschema['id']]],
+            logger_name='retrieve'
+        )
+
+        pweight_retriever = RetrievalEvaluate(
+            'jieba',
+            excluded_post_ids=[p[pschema['id']]],
+            pweight=JiebaPosWeight(),
+            logger_name='retrieve'
+        )
+
+        query = ' '.join(
+            [
+                '{}:{}'.format(w, p)
+                for w, p in zip(
+                    titles[0][tschema['tokenized']].split(),
+                    titles[0][tschema['grammar']].split()
+                )
+            ]
+        )
+
+        qbag = QBag(Query(query))
+        pipe = OkPipeline(
+            qbag, ['query.query'],
             [
                 ((['query.query'], ['query.topic_words']), SplitTokenizer(),),
-                ((['query.topic_words'], ['top_posts']), retriever.get_top_posts,),
-                ((['top_posts'], ['top_comments']), retriever.get_top_comments,),
-                ((['top_posts'], ['random_post_id']), generate_random_post,),
-                ((['random_post_id'], ['random_comments', 'random_comment_ids']), retriever.get_comment_obj),
-#                ((['random_comments'], ['random_comments']), shuffle_comments),
-#                ((['random_comments'], ['random_words_ls']), extract_words,),
-#                ((['top_comments'], ['predict_words_ls']), extract_words,),
-#                ((['query.topic_words', 'predict_words_ls'], ['ndcg_score']), MetricApiWrapper('http://localhost:1234/doc2vec/'),),
-#                ((['query.topic_words', 'random_words_ls'], ['rand_ndcg_score']), MetricApiWrapper('http://localhost:1234/doc2vec/'),),
+                ((['query.topic_words'], ['top_posts_basic']), basic_retriever.get_top_posts,),
+                ((['top_posts_basic'], ['top_comments_basic']), basic_retriever.get_top_comments,),
+                ((['top_comments_basic'], ['predict_words_ls_basic']), extract_words,),
+
+                ((['query.topic_words'], ['top_posts_pweight']), pweight_retriever.get_top_posts,),
+                ((['top_posts_pweight'], ['top_comments_pweight']), pweight_retriever.get_top_comments,),
+                ((['top_comments_pweight'], ['predict_words_ls_pweight']), extract_words,),
+
+                ((['top_posts_basic'], ['random_post_id']), generate_random_post,),
+                ((['random_post_id'], ['random_comments', 'random_comment_ids']), basic_retriever.get_comment_obj),
+                ((['random_comments'], ['random_comments']), shuffle_comments),
+                ((['random_comments'], ['random_words_ls']), extract_words,),
+
+                ((['query.topic_words', 'predict_words_ls_basic'], ['ndcg_score_basic']), MetricApiWrapper('http://localhost:1234/doc2vec/'),),
+                ((['query.topic_words', 'predict_words_ls_pweight'], ['ndcg_score_pweight']), MetricApiWrapper('http://localhost:1234/doc2vec/'),),
+                ((['query.topic_words', 'random_words_ls'], ['rand_ndcg_score']), MetricApiWrapper('http://localhost:1234/doc2vec/'),),
             ],
             logger_name='evaluate'
         )
-        result = p.run()
+        pipe.run()
 
-        if len(q.top_posts) > 0:
-            valid_post += 1
+        if idx > 5:
+            break
 
-    # print('\n'.join([cmt.body for cmt in q.ranked_comments]))
-    print(valid_post)
+
+

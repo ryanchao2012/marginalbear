@@ -27,6 +27,7 @@ class QBag(object):
     def __init__(self, query):
         self.query = query
 
+
 class Query(object):
 
     def __init__(self, stentence, ctype='text'):
@@ -49,6 +50,7 @@ class Vocab(Word):
     postfreq = 1
     commentfreq = 1
     stopword = False
+    weight = 1.0
 
     def __init__(self, word, pos='__unknown__', **kwargs):
         super().__init__(word, pos=pos)

@@ -79,16 +79,38 @@ class RetrievalBase(PsqlQueryScript):
         SELECT * FROM pttcorpus_post WHERE id IN %s ORDER BY publish_date DESC;
     '''
 
-    def __init__(self, tokenizer_tag, excluded_post_ids=[], logger_name='retrievalbase'):
+    def __init__(
+        self,
+        tokenizer_tag,
+        excluded_post_ids=[],
+        pweight={},
+        ranker=jaccard_similarity,
+        logger_name='retrievalbase'
+    ):
         self.excluded_post_ids = excluded_post_ids
         self.tokenizer_tag = tokenizer_tag
+        self.pweight = pweight
+        self.ranker = ranker
         self.logger = logging.getLogger(logger_name)
+
+    def _build_vocab(self, tp, schema):
+        v = Vocab(
+            tp[schema['word']],
+            pos=tp[schema['pos']],
+            weight=self.pweight.get(tp[schema['pos']], 1.0),
+            tokenizer=tp[schema['tokenizer']],
+            postfreq=tp[schema['postfreq']],
+            commentfreq=tp[schema['commentfreq']],
+            quality=tp[schema['quality']],
+            stopword=tp[schema['stopword']]
+        )
+        return v
 
     def retrieve(self, words):
         raise NotImplementedError
 
-    def query_vocab_by_words(self, w, relative_words=None):
-        words = list(w)
+    def query_vocab_by_words(self, wds, relative_words=None):
+        words = list(wds)
         if bool(relative_words):
             try:
                 words += list(relative_words)
@@ -180,17 +202,8 @@ class RetrievalBase(PsqlQueryScript):
                     cmt[cmtschema['tokenized']].split(), cmt[cmtschema['grammar']].split()
                 )
             })
-
             doc_vocabs = [
-                Vocab(
-                    cmtvocab_dict[v][vschema['word']],
-                    pos=cmtvocab_dict[v][vschema['pos']],
-                    tokenizer=cmtvocab_dict[v][vschema['tokenizer']],
-                    postfreq=cmtvocab_dict[v][vschema['postfreq']],
-                    commentfreq=cmtvocab_dict[v][vschema['commentfreq']],
-                    quality=cmtvocab_dict[v][vschema['quality']],
-                    stopword=cmtvocab_dict[v][vschema['stopword']]
-                )
+                self._build_vocab(cmtvocab_dict[v], vschema)
                 for v in unique_v if v in cmtvocab_dict
             ]
 
@@ -244,15 +257,7 @@ class RetrievalBase(PsqlQueryScript):
             })
 
             doc_vocabs = [
-                Vocab(
-                    pvocab_dict[v][vschema['word']],
-                    pos=pvocab_dict[v][vschema['pos']],
-                    tokenizer=pvocab_dict[v][vschema['tokenizer']],
-                    postfreq=pvocab_dict[v][vschema['postfreq']],
-                    commentfreq=pvocab_dict[v][vschema['commentfreq']],
-                    quality=pvocab_dict[v][vschema['quality']],
-                    stopword=pvocab_dict[v][vschema['stopword']]
-                )
+                self._build_vocab(pvocab_dict[v], vschema)
                 for v in unique_v if v in pvocab_dict
             ]
             pid = tt[tschema['post_id']]
@@ -271,21 +276,13 @@ class RetrievalBase(PsqlQueryScript):
                     body=''.join(tt[tschema['tokenized']].split())
                 )
             )
-            p = query_posts[-1]
+            # p = query_posts[-1] ??
         return query_posts, post_id
 
     def get_vocab_obj(self, words):
         qvocab, vschema = self.query_vocab_by_words(words)
         query_vocabs = [
-            Vocab(
-                v[vschema['word']],
-                pos=v[vschema['pos']],
-                tokenizer=v[vschema['tokenizer']],
-                postfreq=v[vschema['postfreq']],
-                commentfreq=v[vschema['commentfreq']],
-                quality=v[vschema['quality']],
-                stopword=v[vschema['stopword']]
-            )
+            self._build_vocab(v, vschema)
             for v in qvocab
         ]
 
@@ -316,7 +313,7 @@ class RetrievalEvaluate(RetrievalBase):
 
     max_top_post_num = 10
     max_top_comment_num = 50
-    similarity_ranking_threshold = 0.9
+    similarity_ranking_threshold = 0.8
 
     def __call__(self, words):
         return self.retrieve(words)
@@ -334,17 +331,14 @@ class RetrievalEvaluate(RetrievalBase):
         self.logger.info('Elapsed time @query_posts: {:.2f}'.format(time.time() - tic))
         tic = time.time()
 
-        post_score = [jaccard_similarity(query_vocabs, p.vocabs) for p in query_posts]
+        post_score = [self.ranker(query_vocabs, p.vocabs) for p in query_posts]
 
         top_posts, top_post_scores = self.ranking(post_score, query_posts, self.max_top_post_num, self.similarity_ranking_threshold)
-
-#        if max(top_post_scores) < 0.7:
-#            return []
 
         for post, score in zip(top_posts, top_post_scores):
             post.similarity_score = score
 
-            self.logger.warning('Retrieved: [{:.2f}] {}'.format(post.similarity_score, post.body))
+            # self.logger.warning('Retrieved: [{:.2f}] {}'.format(post.similarity_score, post.body))
 
         return top_posts
 
@@ -394,7 +388,7 @@ class RetrievalEvaluate(RetrievalBase):
         top_comments, top_comment_scores = self.ranking(cmt_score, query_comments, self.max_top_comment_num)
         for cmt, score in zip(top_comments, top_comment_scores):
             cmt.score = score
-        
+
         return top_comments
 
     def retrieve(self, words):
@@ -435,15 +429,7 @@ class RetrievalJaccard(RetrievalBase):
             })
 
             doc_vocabs = [
-                Vocab(
-                    cmtvocab_dict[v][vschema['word']],
-                    pos=cmtvocab_dict[v][vschema['pos']],
-                    tokenizer=cmtvocab_dict[v][vschema['tokenizer']],
-                    postfreq=cmtvocab_dict[v][vschema['postfreq']],
-                    commentfreq=cmtvocab_dict[v][vschema['commentfreq']],
-                    quality=cmtvocab_dict[v][vschema['quality']],
-                    stopword=cmtvocab_dict[v][vschema['stopword']]
-                )
+                self._build_vocab(cmtvocab_dict[v], vschema)
                 for v in unique_v if v in cmtvocab_dict
             ]
 
@@ -492,15 +478,7 @@ class RetrievalJaccard(RetrievalBase):
             })
 
             doc_vocabs = [
-                Vocab(
-                    pvocab_dict[v][vschema['word']],
-                    pos=pvocab_dict[v][vschema['pos']],
-                    tokenizer=pvocab_dict[v][vschema['tokenizer']],
-                    postfreq=pvocab_dict[v][vschema['postfreq']],
-                    commentfreq=pvocab_dict[v][vschema['commentfreq']],
-                    quality=pvocab_dict[v][vschema['quality']],
-                    stopword=pvocab_dict[v][vschema['stopword']]
-                )
+                self._build_vocab(pvocab_dict[v], vschema)
                 for v in unique_v if v in pvocab_dict
             ]
             pid = tt[tschema['post_id']]
@@ -525,15 +503,7 @@ class RetrievalJaccard(RetrievalBase):
     def _get_query_vocab_obj(self, words):
         qvocab, vschema = self.query_vocab_by_words(words)
         query_vocabs = [
-            Vocab(
-                v[vschema['word']],
-                pos=v[vschema['pos']],
-                tokenizer=v[vschema['tokenizer']],
-                postfreq=v[vschema['postfreq']],
-                commentfreq=v[vschema['commentfreq']],
-                quality=v[vschema['quality']],
-                stopword=v[vschema['stopword']]
-            )
+            self._build_vocab(v, vschema)
             for v in qvocab
         ]
 
