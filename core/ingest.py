@@ -1,5 +1,6 @@
 import logging
 import collections
+import itertools as it
 from datetime import datetime
 from core.utils import (
     PsqlQuery, PsqlQueryScript,
@@ -124,6 +125,16 @@ class PsqlIngestScript(PsqlQueryScript):
             UPDATE SET
                 retrieval_count = pttcorpus_comment.retrieval_count
             RETURNING id;
+    '''
+
+    upsert_association_sql = '''
+            INSERT INTO pttcorpus_association (vocabt_id, vocabc_id, pxy, tokenizer)
+            SELECT unnest( %(vocabt_id)s ), unnest( %(vocabc_id)s ), unnest( %(pxy)s ), unnest( %(tokenizer)s )
+            ON CONFLICT (vocabt_id, vocabc_id) DO
+            UPDATE SET
+                pxy = pttcorpus_association.pxy,
+                tokenizer = pttcorpus_association.tokenizer
+            RETURNING vocabt_id
     '''
 
 
@@ -372,3 +383,47 @@ class PsqlIngester(PsqlIngestScript):
         comment_id = psql.upsert(self.insert_comment_sql, locals())
 
         return [cmt[0] for cmt in comment_id], batch_comment
+
+    def upsert_association(self, vocab_id):
+        vocab_id = list(set(vocab_id))
+        qpost, schema = self._query_all(
+            self.query_post_by_vid_sql,
+            (tuple(vocab_id),)
+        )
+        qpost_lists = [p2v[schema['post_id']] for p2v in qpost]
+        if len(qpost_lists) > 0:
+            cnter_result = self.vocab_pair_counter(qpost_lists)
+            vocab_cnt = {vocab_pair: cnter_result[vocab_pair] for vocab_pair in cnter_result.keys() if int(vocab_pair[0]) in vocab_id}
+
+            vocabt_id = []
+            vocabc_id = []
+            pxy = []
+            tokenizer = ['jieba'] * len(vocab_cnt)
+            for k, v in vocab_cnt.items():
+                vocabt_id.append(int(k[0]))
+                vocabc_id.append(int(k[1]))
+                pxy.append(v)
+
+            psql = PsqlQuery()
+            psql.upsert(self.upsert_association_sql,
+                        {'vocabt_id': vocabt_id, 'vocabc_id': vocabc_id, 'pxy': pxy, 'tokenizer': tokenizer})
+
+    def vocab_pair_counter(self, post_id):
+        post_id = list(set(post_id))
+        qpost2title_vocabs, schema = self._query_all(
+            self.query_title_vocab_ids_by_post_id_sql,
+            (tuple(post_id),)
+        )
+        qtitle_vocab_id = [p2v[schema['vocab_ids']] for p2v in qpost2title_vocabs]
+
+        qpost2comment_vocabs, schema = self._query_all(
+            self.query_comment_vocab_ids_by_post_id_sql,
+            (tuple(post_id),)
+        )
+        qcomment_vocab_id = [p2v[schema['vocab_ids']] for p2v in qpost2comment_vocabs]
+
+        title_vocab_id = [i.split(',') for i in qtitle_vocab_id]
+        comment_vocab_id = [i.split(',') for i in qcomment_vocab_id]
+        vocab_pair = list(it.chain.from_iterable([it.product(title_vocab_id[i], comment_vocab_id[i]) for i in range(len(post_id))]))
+        vocab_pair_cnt = collections.Counter(vocab_pair)
+        return vocab_pair_cnt
