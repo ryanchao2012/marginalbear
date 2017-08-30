@@ -10,6 +10,7 @@ migrations/
 pokearound/
 .DS_Store
 *.txt
+*.csv
 *.jl
 *.out
 *.swp

@@ -65,7 +65,8 @@ def extract_words(comments):
     return [extract(cmt) for cmt in comments]
 
 if __name__ == '__main__':
-
+    with open('eval0829.csv', 'w') as f:
+        f.write('random, base, pweight\n')
     psql = PsqlQuery()
     posts = psql.query(query_post_sql)
     pschema = psql.schema
@@ -86,7 +87,7 @@ if __name__ == '__main__':
         pweight_retriever = RetrievalEvaluate(
             'jieba',
             excluded_post_ids=[p[pschema['id']]],
-            pweight=JiebaPosWeight(),
+            pweight=JiebaPosWeight.weight,
             logger_name='retrieve'
         )
 
@@ -125,9 +126,16 @@ if __name__ == '__main__':
             logger_name='evaluate'
         )
         pipe.run()
-
-        if idx > 5:
-            break
+        with open('eval0829.csv', 'a') as f:
+            f.write(
+                '{:.2f}, {:.2f}, {:.2f}\n'.format(
+                    float(qbag.rand_ndcg_score.text),
+                    float(qbag.ndcg_score_basic.text),
+                    float(qbag.ndcg_score_pweight.text)
+                )
+            )
+        # if idx > 5:
+        #     break
 
 
 

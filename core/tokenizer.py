@@ -51,7 +51,7 @@ class SplitTokenizer(Tokenizer):
 
 class JiebaPosWeight:
 
-    pos = dict(
+    weight = dict(
         n=4.0,
         nr=7.5,
         v=2.0,

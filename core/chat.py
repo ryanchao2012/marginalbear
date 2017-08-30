@@ -313,7 +313,7 @@ class RetrievalEvaluate(RetrievalBase):
 
     max_top_post_num = 10
     max_top_comment_num = 50
-    similarity_ranking_threshold = 0.8
+    similarity_ranking_threshold = 0.9
 
     def __call__(self, words):
         return self.retrieve(words)
