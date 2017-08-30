@@ -170,7 +170,6 @@ class PsqlQuery(PsqlAbstract):
         cursor.execute(query_, data)
         connect.commit()
 
-
     def delete(self, q, data=None):
         self._delete(query_=q, data=data)
 
@@ -263,6 +262,29 @@ class PsqlQueryScript(object):
     query_title_sql = '''
         SELECT * FROM pttcorpus_title
         WHERE (post_id, tokenizer) IN %s;
+    '''
+
+    query_post_by_vid_sql = '''
+        SELECT post_id FROM pttcorpus_vocabulary_post
+        WHERE vocabulary_id IN %s;
+    '''
+
+    query_title_vocab_ids_by_post_id_sql = '''
+        SELECT post_id,
+               string_agg(vocabulary_id::character varying, ',') AS vocab_ids
+        FROM pttcorpus_vocabulary_post
+        WHERE post_id IN %s
+        GROUP BY post_id;
+    '''
+
+    query_comment_vocab_ids_by_post_id_sql = '''
+        SELECT pttcorpus_comment.post_id,
+               string_agg(pttcorpus_vocabulary_comment.vocabulary_id::character varying, ',') AS vocab_ids
+        FROM pttcorpus_comment
+        JOIN pttcorpus_vocabulary_comment ON
+        pttcorpus_vocabulary_comment.comment_id = pttcorpus_comment.id
+        WHERE pttcorpus_comment.post_id IN %s
+        GROUP BY pttcorpus_comment.post_id;
     '''
 
 
