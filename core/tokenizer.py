@@ -1,5 +1,6 @@
 import jieba
 import jieba.posseg as pseg
+import opencc
 from .utils import Word
 
 
@@ -12,14 +13,14 @@ class Tokenizer(object):
     def __init__(self):
         pass
 
-    def cut(self, sentence):
+    def __call__(self, sentence, pos=True):
+        return self.cut(sentence, pos=pos)
+
+    def cut(self, sentence, pos=True):
         raise NotImplementedError
 
 
 class JiebaTokenizer(Tokenizer):
-
-    def __call__(self, sentence):
-        return self.cut(sentence)
 
     def cut(self, sentence, pos=True):
         if pos:
@@ -35,10 +36,26 @@ class JiebaTokenizer(Tokenizer):
             return [Word(w.strip()) for w in jieba.cut(sentence) if bool(w.strip())]
 
 
-class SplitTokenizer(Tokenizer):
+class OpenCCTokenizer(Tokenizer):
 
-    def __call__(self, sentence):
-        return self.cut(sentence)
+    def __init__(self, tokenizer_instance):
+        self.tokenizer = tokenizer_instance
+
+    def cut(self, sentence, pos=True):
+        simplified = opencc.convert(sentence, config='tw2s.json')
+
+        tokenized = self.tokenizer(simplified, pos=pos)
+
+        recovered = []
+        head = 0
+        for tok in tokenized:
+            l = len(tok.word)
+            recovered.append(Word(sentence[head : head + l], pos=tok.pos))
+            head += l
+        return recovered
+
+
+class SplitTokenizer(Tokenizer):
 
     def cut(self, sentence):
         words = []
