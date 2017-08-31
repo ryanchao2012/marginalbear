@@ -1,8 +1,10 @@
 import math
 import re
+import opencc
 import psycopg2
 import logging
 import datetime
+from typing import Generator, List
 
 URL_REGEX = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 
@@ -394,17 +396,17 @@ def contain_url(query):
         return False, None
 
 
-def query2lower(query):
+def query2lower(query: str) -> str:
     """Convert the query string to lowercase."""
     return query.lower()
 
 
-def to_lower(query):
+def to_lower(query: str) -> str:
     """Convert the query string to lowercase."""
     return query.lower()
 
 
-def to_halfwidth(query):
+def to_halfwidth(query: str) -> str:
     """Convert the query string to halfwidth."""
     """
     全形字符 unicode 編碼從 65281 ~ 65374(十六進制 0xFF01 ~ 0xFF5E)
@@ -430,12 +432,13 @@ def to_halfwidth(query):
 def query2halfwidth(query: str) -> str:
     """Convert the query string to halfwidth."""
     """
-    全形字符 unicode 編碼從 65281 ~ 65374(十六進制 0xFF01 ~ 0xFF5E)
-    半形字符 unicode 編碼從 33 ~ 126(十六進制 0x21~ 0x7E)
-    空格比較特殊, 全形為12288(0x3000), 半形為32(0x20)
-    而且除空格外, 全形/半形按 unicode 編碼排序在順序上是對應的
-    所以可以直接通過用+-法來處理非空格字元, 對空格單獨處理.
+        全形字符 unicode 編碼從 65281 ~ 65374(十六進制 0xFF01 ~ 0xFF5E)
+        半形字符 unicode 編碼從 33 ~ 126(十六進制 0x21~ 0x7E)
+        空格比較特殊, 全形為12288(0x3000), 半形為32(0x20)
+        而且除空格外, 全形/半形按 unicode 編碼排序在順序上是對應的
+        所以可以直接通過用+-法來處理非空格字元, 對空格單獨處理.
     """
+
     rstring = ""
     for char in query:
         code = ord(char)
