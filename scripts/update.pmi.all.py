@@ -50,7 +50,7 @@ if __name__ == '__main__':
     for post_ids in query_vocab_id(batch_size=10):
         if len(post_ids) > 0:
             try:
-                ingester.upsert_association(post_ids)
+                ingester.upsert_association(post_ids, 10000)
             except Exception as err:
                 logger.error(post_ids)
                 raise err
