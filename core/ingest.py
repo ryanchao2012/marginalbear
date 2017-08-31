@@ -384,7 +384,7 @@ class PsqlIngester(PsqlIngestScript):
 
         return [cmt[0] for cmt in comment_id], batch_comment
 
-    def upsert_association(self, vocab_id):
+    def upsert_association(self, vocab_id, batch_size):
         vocab_id = list(set(vocab_id))
         qpost, schema = self._query_all(
             self.query_post_by_vid_sql,
@@ -395,18 +395,24 @@ class PsqlIngester(PsqlIngestScript):
             cnter_result = self.vocab_pair_counter(qpost_lists)
             vocab_cnt = {vocab_pair: cnter_result[vocab_pair] for vocab_pair in cnter_result.keys() if int(vocab_pair[0]) in vocab_id}
 
-            vocabt_id = []
-            vocabc_id = []
-            pxy = []
+            vocabt_all = []
+            vocabc_all = []
+            pxy_all = []
             tokenizer = ['jieba'] * len(vocab_cnt)
             for k, v in vocab_cnt.items():
-                vocabt_id.append(int(k[0]))
-                vocabc_id.append(int(k[1]))
-                pxy.append(v)
+                vocabt_all.append(int(k[0]))
+                vocabc_all.append(int(k[1]))
+                pxy_all.append(v)
 
-            psql = PsqlQuery()
-            psql.upsert(self.upsert_association_sql,
-                        {'vocabt_id': vocabt_id, 'vocabc_id': vocabc_id, 'pxy': pxy, 'tokenizer': tokenizer})
+            batch_vocabt = self.batch_list(vocabt_all, batch_size)
+            batch_vocabc = self.batch_list(vocabc_all, batch_size)
+            batch_pxy = self.batch_list(pxy_all, batch_size)
+            batch_tokenizer = self.batch_list(tokenizer, batch_size)
+
+            for vocabt_id, vocabc_id, pxy, tokenizer in zip(batch_vocabt, batch_vocabc, batch_pxy, batch_tokenizer):
+                psql = PsqlQuery()
+                psql.upsert(self.upsert_association_sql,
+                            {'vocabt_id': vocabt_id, 'vocabc_id': vocabc_id, 'pxy': pxy, 'tokenizer': tokenizer})
 
     def vocab_pair_counter(self, post_id):
         post_id = list(set(post_id))
@@ -427,3 +433,7 @@ class PsqlIngester(PsqlIngestScript):
         vocab_pair = list(it.chain.from_iterable([it.product(title_vocab_id[i], comment_vocab_id[i]) for i in range(len(post_id))]))
         vocab_pair_cnt = collections.Counter(vocab_pair)
         return vocab_pair_cnt
+
+    def batch_list(self, input_list, col):
+        row = int(len(input_list) / col) + 1
+        return [input_list[col * i: col * (i + 1)] for i in range(row)]
