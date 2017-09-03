@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import edit_distance
 import sys
 
@@ -15,7 +16,7 @@ def distance(ref_ls, hyp_ls):
 
 def score_from_file(target='query', groundtrue='groundtrue', tokenizer='jieba'):
     scores = []
-    with open('data/tokenizer.{}.{}'.format(target, groundtrue, 'r')) as g, open('data/tokenizer.{}.{}'.format(target, tokenizer)) as f:
+    with open('data/{}.{}'.format(target, groundtrue, 'r')) as g, open('data/{}.{}'.format(target, tokenizer)) as f:
         for gin, fin in zip(g, f):
             scores.append(norm_distance(gin.split(), fin.split()))
 

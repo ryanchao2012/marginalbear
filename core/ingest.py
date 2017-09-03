@@ -1,6 +1,7 @@
 import logging
 import collections
 import itertools as it
+import math
 from datetime import datetime
 from core.utils import (
     PsqlQuery, PsqlQueryScript,
@@ -127,14 +128,30 @@ class PsqlIngestScript(PsqlQueryScript):
             RETURNING id;
     '''
 
-    upsert_association_sql = '''
-            INSERT INTO pttcorpus_association (vocabt_id, vocabc_id, pxy, tokenizer)
-            SELECT unnest( %(vocabt_id)s ), unnest( %(vocabc_id)s ), unnest( %(pxy)s ), unnest( %(tokenizer)s )
+    upsert_vocab_pairfreq_sql = '''
+            INSERT INTO pttcorpus_association (vocabt_id, vocabc_id, tokenizer, pxy)
+            SELECT unnest( %(vocabt_id)s ),
+                   unnest( %(vocabc_id)s ),
+                   unnest( %(tokenizer)s ),
+                   unnest( %(pxy)s )
             ON CONFLICT (vocabt_id, vocabc_id) DO
             UPDATE SET
-                pxy = pttcorpus_association.pxy,
-                tokenizer = pttcorpus_association.tokenizer
+                tokenizer = EXCLUDED.tokenizer,
+                pxy = EXCLUDED.pxy
             RETURNING vocabt_id
+    '''
+
+    update_association_sql = '''
+            UPDATE pttcorpus_association AS old
+            SET confidence = new.confidence,
+                pmi = new.pmi
+            FROM (SELECT unnest( %(vocabt_id)s ) as vocabt_id,
+                   unnest( %(vocabc_id)s ) as vocabc_id,
+                   unnest( %(tokenizer)s ) as tokenizer,
+                   unnest( %(confidence)s ) as confidence,
+                   unnest( %(pmi)s ) as pmi) as new
+            WHERE old.vocabt_id = new.vocabt_id AND
+                  old.vocabc_id = new.vocabc_id;
     '''
 
 
@@ -384,7 +401,7 @@ class PsqlIngester(PsqlIngestScript):
 
         return [cmt[0] for cmt in comment_id], batch_comment
 
-    def upsert_association(self, vocab_id, batch_size):
+    def upsert_vocab_pairfreq(self, vocab_id, batch_size):
         vocab_id = list(set(vocab_id))
         qpost, schema = self._query_all(
             self.query_post_by_vid_sql,
@@ -398,7 +415,7 @@ class PsqlIngester(PsqlIngestScript):
             vocabt_all = []
             vocabc_all = []
             pxy_all = []
-            tokenizer = ['jieba'] * len(vocab_cnt)
+            tokenizer_all = ['jieba'] * len(vocab_cnt)
             for k, v in vocab_cnt.items():
                 vocabt_all.append(int(k[0]))
                 vocabc_all.append(int(k[1]))
@@ -407,12 +424,69 @@ class PsqlIngester(PsqlIngestScript):
             batch_vocabt = self.batch_list(vocabt_all, batch_size)
             batch_vocabc = self.batch_list(vocabc_all, batch_size)
             batch_pxy = self.batch_list(pxy_all, batch_size)
-            batch_tokenizer = self.batch_list(tokenizer, batch_size)
+            batch_tokenizer = self.batch_list(tokenizer_all, batch_size)
 
-            for vocabt_id, vocabc_id, pxy, tokenizer in zip(batch_vocabt, batch_vocabc, batch_pxy, batch_tokenizer):
+            for vocabt_id, vocabc_id, tokenizer, pxy in zip(batch_vocabt,
+                                                            batch_vocabc,
+                                                            batch_tokenizer,
+                                                            batch_pxy):
                 psql = PsqlQuery()
-                psql.upsert(self.upsert_association_sql,
-                            {'vocabt_id': vocabt_id, 'vocabc_id': vocabc_id, 'pxy': pxy, 'tokenizer': tokenizer})
+                psql.upsert(self.upsert_vocab_pairfreq_sql,
+                            {'vocabt_id': vocabt_id,
+                             'vocabc_id': vocabc_id,
+                             'tokenizer': tokenizer,
+                             'pxy': pxy})
+
+    def update_association(self, postfreq_sum, commentfreq_sum, vocab_pairsum, vocab_ids, batch_size):
+        qassociation, schema = self._query_all(
+            self.query_association_by_vocabt_id,
+            (tuple(vocab_ids),)
+        )
+        association_dict = {(i[schema['vocabt_id']], i[schema['vocabc_id']], i[schema['tokenizer']]): i[schema['pxy']] for i in qassociation}
+
+        total_vocab_id = list(set(it.chain.from_iterable([[i[0], i[1]] for i in association_dict])))
+
+        if len(total_vocab_id) > 0:
+            qvocab, schema = self._query_all(
+                self.query_vocab_by_id,
+                (tuple(total_vocab_id),)
+            )
+            qvocab_dict = {v[schema['id']]: (v[schema['postfreq']], v[schema['commentfreq']]) for v in qvocab}
+
+            vocabt_all = []
+            vocabc_all = []
+            npmi_all = []
+            confidence_all = []
+            tokenizer_all = []
+            for k, v in association_dict.items():
+                px = qvocab_dict[k[0]][0] / postfreq_sum
+                py = qvocab_dict[k[1]][1] / commentfreq_sum
+                pxy = v / vocab_pairsum
+
+                vocabt_all.append(k[0])
+                vocabc_all.append(k[1])
+                npmi_all.append(self.normalized_pmi(px, py, pxy))
+                confidence_all.append(math.log(pxy / px))
+                tokenizer_all.append(k[2])
+
+            batch_vocabt = self.batch_list(vocabt_all, batch_size)
+            batch_vocabc = self.batch_list(vocabc_all, batch_size)
+            batch_tokenizer = self.batch_list(tokenizer_all, batch_size)
+            batch_npmi = self.batch_list(npmi_all, batch_size)
+            batch_confidence = self.batch_list(confidence_all, batch_size)
+
+            for vocabt_id, vocabc_id, tokenizer, confidence, pmi in zip(batch_vocabt,
+                                                                        batch_vocabc,
+                                                                        batch_tokenizer,
+                                                                        batch_confidence,
+                                                                        batch_npmi):
+                psql = PsqlQuery()
+                psql.update(self.update_association_sql,
+                            {'vocabt_id': vocabt_id,
+                             'vocabc_id': vocabc_id,
+                             'tokenizer': tokenizer,
+                             'confidence': confidence,
+                             'pmi': pmi})
 
     def vocab_pair_counter(self, post_id):
         post_id = list(set(post_id))
@@ -435,5 +509,8 @@ class PsqlIngester(PsqlIngestScript):
         return vocab_pair_cnt
 
     def batch_list(self, input_list, col):
-        row = int(len(input_list) / col) + 1
+        row = math.ceil(len(input_list) / col)
         return [input_list[col * i: col * (i + 1)] for i in range(row)]
+
+    def normalized_pmi(self, px, py, pxy):
+        return -1 if pxy == 1 else math.log(px * py) / math.log(pxy) - 1

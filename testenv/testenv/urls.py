@@ -15,8 +15,17 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from doc2vec import views as d2v_views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^doc2vec/', d2v_views.catch),
 ]
+
+
+
+from configparser import RawConfigParser
+parser = RawConfigParser()
+parser.read('config.ini')
+
+if parser.get('global', 'env') == 'evaluation':
+    from doc2vec import views as d2v_views
+    urlpatterns.append(url(r'^doc2vec/', d2v_views.catch))
+

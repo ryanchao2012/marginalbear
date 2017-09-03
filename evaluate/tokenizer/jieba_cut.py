@@ -1,7 +1,7 @@
-import jieba
+import jieba.posseg as pseg
 import fileinput
 
 
 for line in fileinput.input():
-    print(' '.join(list(jieba.cut(line))))
+    print(' '.join([tok.word for tok in pseg.cut(line) if bool(tok.word.strip())]))
 
