@@ -41,20 +41,55 @@ def query_vocab_id(batch_size=1000):
     yield batch
 
 
+def query_freq_sum():
+
+    query_freq_sum_sql = '''
+        SELECT SUM(postfreq) AS postfreq_sum,
+               SUM(commentfreq) AS commentfreq_sum
+        FROM pttcorpus_vocabulary;
+    '''
+
+    query_vocab_pairfreq_sum_sql = '''
+        SELECT SUM(pxy) AS sum
+        FROM pttcorpus_association;
+    '''
+
+    psql = PsqlQuery()
+    postfreq_sum, commentfreq_sum = list(psql.query(query_freq_sum_sql))[0]
+    logger.info('postfreq_sum:{}, commentfreq_sum:{}'.format(postfreq_sum, commentfreq_sum))
+    vocab_pairfreq_sum = list(psql.query(query_vocab_pairfreq_sum_sql))[0][0]
+    logger.info('vocab_pairfreq_sum:{}'.format(vocab_pairfreq_sum))
+
+    return postfreq_sum, commentfreq_sum, vocab_pairfreq_sum
+
+
 if __name__ == '__main__':
     start = time.time()
     ingester = PsqlIngester('jieba')
 
     consumed = 0
-    # for post_ids in [[1, 2, 3]]:
-    for post_ids in query_vocab_id(batch_size=10):
-        if len(post_ids) > 0:
+    for vocab_ids in query_vocab_id(batch_size=10):
+        if len(vocab_ids) > 0:
             try:
-                ingester.upsert_association(post_ids, 10000)
+                ingester.upsert_vocab_pairfreq(vocab_ids, 1000)
             except Exception as err:
-                logger.error(post_ids)
+                logger.error(vocab_ids)
+                raise err
+            consumed += len(vocab_ids)
+            logger.info('{} vocab\'s vocab_pairfreq are updated'.format(consumed))
+    print('Elapsed time @update_vocab_pairfreq: {:.2f}sec.'.format(time.time() - start))
+
+    postfreq_sum, commentfreq_sum, vocab_pairfreq_sum = query_freq_sum()
+    consumed = 0
+    for vocab_ids in query_vocab_id(batch_size=50):
+        start = time.time()
+        if len(vocab_ids) > 0:
+            try:
+                ingester.upsert_association(postfreq_sum, commentfreq_sum, vocab_pairfreq_sum, vocab_ids, batch_size=1000)
+            except Exception as err:
+                logger.error(vocab_ids)
                 raise err
 
-            consumed += len(post_ids)
-            logger.info('{} vocab\'s pmi are updated'.format(consumed))
-    print('Elapsed time @update_pmi: {:.2f}sec.'.format(time.time() - start))
+            consumed += len(vocab_ids)
+            logger.info('{} vocab\'s association are updated in {}s'.format(consumed, time.time() - start))
+    print('Elapsed time @update_association: {:.2f}sec.'.format(time.time() - start))
