@@ -1,3 +1,4 @@
+import re
 from configparser import RawConfigParser
 from core.utils import (
     PsqlAbstract,
@@ -32,7 +33,7 @@ upsert_post_sql = '''
                unnest( %(comment)s ), unnest( %(publish_date)s )
         ON CONFLICT (url) DO
         UPDATE SET
-            author = EXCLUDED.author,
+            author = EXCLUDED.author
         RETURNING id;
 '''
 
@@ -43,14 +44,14 @@ def upsert_post(batch_post):
     author = [post['author'] for post in batch_post]
     content = [post['content'] for post in batch_post]
     comment = [post['comment'] for post in batch_post]
-    publish_date = [post['date'] for post in batch_post]
-
+    publish_date = [post['publish_date'] for post in batch_post]
     post_id = []
     try:
         psql = PsqlQuery()
         post_id = psql.upsert(upsert_post_sql, locals())
     except Exception as e:
         oklogger.logger.error(e)
+        oklogger.logger.error(title)
         raise e
 
     return post_id
@@ -83,7 +84,7 @@ class BatchParser(object):
 class CrawlPostParser(BatchParser):
     fields = [
         'author',
-        'date',
+        'publish_date',
         'title',
         'content',
         'comment',
@@ -93,16 +94,19 @@ class CrawlPostParser(BatchParser):
     def parse(self, line):
         try:
             post = json.loads(line)
-            post['date'] = datetime.strptime(
-                post['publish_date'], '%Y-%m-%dT%H:%M:%S+00:00'
+            url = post['url']
+            timestamp = re.search(r'\d{10}', url).group()
+            post['publish_date'] = datetime.fromtimestamp(
+                int(timestamp)
             )
+            post['comment'] = '\n'.join(post['push'])
             return post
         except Exception as err:
             self.logger.warning(err)
             self.logger.warning(
                 'object CrawlPostParser, '
                 'jsonline record faild to parse in, ignored. line: {}'.format(
-                    line.encode('utf-8').decode('unicode-escape')
+                    line
                 )
             )
             return {}
@@ -110,20 +114,20 @@ class CrawlPostParser(BatchParser):
 if __name__ == '__main__':
     start = time.time()
     post_parser = CrawlPostParser(
-        '/var/local/marginalbear/data/okbot.spider.20170419_to_20170903.jsonline'
+        '/var/local/marginalbear/data/okbot.spider.20170903_to_2017_0419.reverse.jsonline'
     )
 
     consumed = 0
-    for batch_post in post_parser.batch_parse(batch_size=1000):
+    posts = 0
+    for batch_post in post_parser.batch_parse(batch_size=50):
         if len(batch_post) > 0:
-            upsert_post(batch_post)
+            post_id = upsert_post(batch_post)
             consumed += len(batch_post)
+            posts += len(post_id)
             oklogger.logger.info(
-                '{} lines are ingested from {}'.format(
-                    consumed,
-                    post_parser.fpath
+                '{} lines are ingested, posts: {}'.format(
+                    consumed, posts
                 )
             )
-        break
 
     print('Elapsed time @post: {:.2f}sec.'.format(time.time() - start))
