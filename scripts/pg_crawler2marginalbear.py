@@ -1,4 +1,5 @@
 import re
+import numpy as np
 from configparser import RawConfigParser
 from core.utils import (
     PsqlAbstract,
@@ -39,12 +40,25 @@ upsert_post_sql = '''
 
 
 def upsert_post(batch_post):
-    title = [post['title'] for post in batch_post]
-    url = [post['url'] for post in batch_post]
-    author = [post['author'] for post in batch_post]
-    content = [post['content'] for post in batch_post]
-    comment = [post['comment'] for post in batch_post]
-    publish_date = [post['publish_date'] for post in batch_post]
+    timestamp = [post['timestamp'] for post in batch_post]
+    sorted_idx = np.argsort(timestamp)[::-1]
+
+    _title = [post['title'] for post in batch_post]
+    _url = [post['url'] for post in batch_post]
+    _author = [post['author'] for post in batch_post]
+    _content = [post['content'] for post in batch_post]
+    _comment = [post['comment'] for post in batch_post]
+
+    title, url, author, content, comment, publish_date = [], [], [], [], [], []
+    for idx in sorted_idx:
+        if _url[idx] not in url:
+            url.append(_url[idx])
+            title.append(_title[idx])
+            author.append(_author[idx])
+            content.append(_content[idx])
+            comment.append(_comment[idx])
+            publish_date.append(datetime.fromtimestamp(timestamp[idx]))
+
     post_id = []
     try:
         psql = PsqlQuery()
@@ -84,7 +98,7 @@ class BatchParser(object):
 class CrawlPostParser(BatchParser):
     fields = [
         'author',
-        'publish_date',
+        'timestamp',
         'title',
         'content',
         'comment',
@@ -96,9 +110,7 @@ class CrawlPostParser(BatchParser):
             post = json.loads(line)
             url = post['url']
             timestamp = re.search(r'\d{10}', url).group()
-            post['publish_date'] = datetime.fromtimestamp(
-                int(timestamp)
-            )
+            post['timestamp'] = int(timestamp)
             post['comment'] = '\n'.join(post['push'])
             return post
         except Exception as err:
@@ -119,7 +131,7 @@ if __name__ == '__main__':
 
     consumed = 0
     posts = 0
-    for batch_post in post_parser.batch_parse(batch_size=50):
+    for batch_post in post_parser.batch_parse(batch_size=100):
         if len(batch_post) > 0:
             post_id = upsert_post(batch_post)
             consumed += len(batch_post)
@@ -129,5 +141,7 @@ if __name__ == '__main__':
                     consumed, posts
                 )
             )
+
+        break
 
     print('Elapsed time @post: {:.2f}sec.'.format(time.time() - start))
