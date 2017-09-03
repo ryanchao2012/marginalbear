@@ -76,8 +76,8 @@ if __name__ == '__main__':
                 logger.error(vocab_ids)
                 raise err
             consumed += len(vocab_ids)
-            logger.info('{} vocab\'s vocab_pairfreq are updated'.format(consumed))
-    print('Elapsed time @update_vocab_pairfreq: {:.2f}sec.'.format(time.time() - start))
+            logger.info('{} vocab\'s vocab_pairfreq are upserted'.format(consumed))
+    print('Elapsed time @upsert_vocab_pairfreq: {:.2f}sec.'.format(time.time() - start))
 
     postfreq_sum, commentfreq_sum, vocab_pairfreq_sum = query_freq_sum()
     consumed = 0
@@ -85,11 +85,10 @@ if __name__ == '__main__':
         start = time.time()
         if len(vocab_ids) > 0:
             try:
-                ingester.upsert_association(postfreq_sum, commentfreq_sum, vocab_pairfreq_sum, vocab_ids, batch_size=1000)
+                ingester.update_association(postfreq_sum, commentfreq_sum, vocab_pairfreq_sum, vocab_ids, batch_size=1000)
             except Exception as err:
                 logger.error(vocab_ids)
                 raise err
-
             consumed += len(vocab_ids)
             logger.info('{} vocab\'s association are updated in {}s'.format(consumed, time.time() - start))
     print('Elapsed time @update_association: {:.2f}sec.'.format(time.time() - start))
