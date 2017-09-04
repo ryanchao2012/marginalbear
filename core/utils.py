@@ -289,6 +289,10 @@ class PsqlQueryScript(object):
         GROUP BY pttcorpus_comment.post_id;
     '''
 
+    query_association_by_vocabt_id = '''
+        SELECT * FROM pttcorpus_association WHERE vocabt_id IN %s;
+    '''
+
 
 # summation(tf * (k1 + 1) /(tf + k1*(1 - b + b*len(doc)/AVE_DOC_LEN)))
 # k1 = [1.2, 2.0]
