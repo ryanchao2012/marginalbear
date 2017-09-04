@@ -41,15 +41,15 @@ upsert_post_sql = '''
 
 def upsert_post(batch_post):
     timestamp = [post['timestamp'] for post in batch_post]
-    sorted_idx = np.argsort(timestamp)[::-1]
-
     _title = [post['title'] for post in batch_post]
     _url = [post['url'] for post in batch_post]
     _author = [post['author'] for post in batch_post]
     _content = [post['content'] for post in batch_post]
     _comment = [post['comment'] for post in batch_post]
-
+    comment_len = [len(cmt) for cmt in _comment]
+    sorted_idx = np.argsort(comment_len)[::-1]
     title, url, author, content, comment, publish_date = [], [], [], [], [], []
+
     for idx in sorted_idx:
         if _url[idx] not in url:
             url.append(_url[idx])
@@ -126,12 +126,12 @@ class CrawlPostParser(BatchParser):
 if __name__ == '__main__':
     start = time.time()
     post_parser = CrawlPostParser(
-        '/var/local/marginalbear/data/okbot.spider.20170903_to_2017_0419.reverse.jsonline'
+        '/var/local/marginalbear/data/okbot.spider.20170903_to_20170419.reverse.jsonline'
     )
 
     consumed = 0
     posts = 0
-    for batch_post in post_parser.batch_parse(batch_size=100):
+    for batch_post in post_parser.batch_parse(batch_size=1000):
         if len(batch_post) > 0:
             post_id = upsert_post(batch_post)
             consumed += len(batch_post)
@@ -141,7 +141,5 @@ if __name__ == '__main__':
                     consumed, posts
                 )
             )
-
-        break
 
     print('Elapsed time @post: {:.2f}sec.'.format(time.time() - start))
