@@ -1,7 +1,7 @@
 *.pyc
 *.ini
 *.log
-*.sql*
+db.*
 data/
 build/
 .ipynb_checkpoints/

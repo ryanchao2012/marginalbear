@@ -538,4 +538,4 @@ def clean_query(query):
     if contain:
         return url, 'url'
     else:
-        return query2halfwidth(query).lower(), 'text'
+        return rm_repeat(to_halfwidth(query)).lower().strip(), 'text'

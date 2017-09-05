@@ -28,12 +28,10 @@ class JiebaTokenizer(Tokenizer):
             tok = []
 
             for p in pairs:
-                w = p.word.strip()
-                if len(w) > 0:
-                    tok.append(Word(w, pos=p.flag))
+                tok.append(Word(p.word, pos=p.flag))
             return tok
         else:
-            return [Word(w.strip()) for w in jieba.cut(sentence) if bool(w.strip())]
+            return [Word(w) for w in jieba.cut(sentence)]
 
 
 class OpenCCTokenizer(Tokenizer):

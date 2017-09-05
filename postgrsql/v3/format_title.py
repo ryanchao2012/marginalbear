@@ -1,43 +1,49 @@
 import fileinput
 import json
-from core.utils import (
-    to_halfwidth,
-    to_lower,
-    contain_url
+from core.tokenizer import (
+    OpenCCTokenizer,
+    JiebaTokenizer
 )
-import datetime
-import re as regex
+from core.utils import (
+    clean_query,
+    to_halfwidth,
+    Word
+)
 
+tokenizer = 'ccjieba'
 
 for line in fileinput.input():
     fields = json.loads(line)
     id_field = fields['id']
     title_field = fields['title']
-    contain, url = contain_url(title_field)
-    title_clean = to_halfwidth(title_field)
 
-    m = regex.search(r'\[(.+)\]', title_clean)
-    if bool(m):
-        tag = to_lower(m.group(1))
+    title_half = to_halfwidth(title_field)
+
+    idx = title_half.find(']')
+    if idx > 0:
+        title = title_field[idx + 1:]
     else:
-        tag = ''
+        title = title_field
 
-    spider = to_lower(regex.search(r'www.ptt.cc/bbs/(\w+)/', url_field).group(1))
+    title_cleaned, ctype = clean_query(title)
 
-    author = author_field[:to_halfwidth(author_field).find('(')].strip()
+    if ctype == 'text':
+        wds = OpenCCTokenizer(JiebaTokenizer()).cut(title_cleaned)
+        words = [w for w in wds if bool(w.word.strip())]
+    else:
+        words = [Word(title_cleaned, 'url')]
 
-    update = datetime.datetime.now()
+    tokenized = ' '.join([w.word.strip() for w in words])
+    grammar = ' '.join([w.pos.strip() for w in words])
 
     print(
-        '{id_}\t{tag}\t{spider}\t{url}\t{author}\t{publish}\t{update}\t{allow}\t{quality}'.format(
-            id_=id_field,
-            tag=tag,
-            spider=spider,
-            url=url_field,
-            author=author,
-            publish=date_field,
-            update=update,
-            allow='t',
+        '{ctype}\t{tokenizer}\t{tokenized}\t{grammar}\t{retrieval_count}\t{post}\t{quality}'.format(
+            ctype=ctype,
+            tokenizer=tokenizer,
+            tokenized=tokenized,
+            grammar=grammar,
+            retrieval_count=0,
+            post=id_field,
             quality=0.0
         )
     )

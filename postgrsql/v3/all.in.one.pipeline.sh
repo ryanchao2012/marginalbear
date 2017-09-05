@@ -15,6 +15,8 @@ sed 1d $basedir/post_formatted.csv | cut -f 5 | sort | uniq > $basedir/author
 echo "Insert authors to table pttcorpus_netizen."
 psql -U okbotadmin -d okbotdb -f insert_author.sql
 psql -U okbotadmin -d okbotdb -f insert_post.sql
+
+
 # rm -rf $basedir
 
 
