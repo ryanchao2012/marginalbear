@@ -1,12 +1,19 @@
 import math
 import re
-import opencc
 import psycopg2
 import logging
 import datetime
-from typing import Generator, List
 
 URL_REGEX = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+CHAR_REPEAT_REGEX = r'(.)\1+'
+WORD_REPEAT_REGEX = r'(\S{2,}?)\1+'
+
+
+def deprecated(f):
+    def _inner(*args, **kargs):
+        print('WARNING: This method: {} is deprecated.'.format(f.__name__))
+        return f(*args, **kargs)
+    return _inner
 
 
 class OkLogger(object):
@@ -296,6 +303,7 @@ class PsqlQueryScript(object):
 
 # summation(tf * (k1 + 1) /(tf + k1*(1 - b + b*len(doc)/AVE_DOC_LEN)))
 # k1 = [1.2, 2.0]
+@deprecated
 def bm25_similarity(vocab, doc, k1=1.5, b=0.75):
     doc_num = 300000.0
     ave_title_len = 19.0
@@ -313,6 +321,7 @@ def bm25_similarity(vocab, doc, k1=1.5, b=0.75):
     return score
 
 
+@deprecated
 def pos_jaccard_similarity(vocab, doc):
     doc_num = 300000
     invocab = []
@@ -326,6 +335,7 @@ def pos_jaccard_similarity(vocab, doc):
     return score
 
 
+@deprecated
 def clean_comment(comment_string):
     union_comment = {}
     cleaned_comment = []
@@ -382,6 +392,63 @@ def clean_comment(comment_string):
     return cleaned_comment
 
 
+def aggregate_comment(comment_string):
+    union_comment = {}
+    cleaned_comment = []
+
+    # anony_num = 0
+    for line, mix in enumerate(comment_string.split('\n'), 1):
+        idx = mix.find(':')
+        if idx < 0:
+            # anony_num += 1
+            audience = 'anonymous'
+            comment = mix.strip()
+            # comment, ctype = clean_query(mix.strip())
+
+            # union_comment[name] = {}
+            # union_comment[name]['comment'] = [{'content': mix.strip(), 'line': line}]
+        else:
+            audience, comment = mix[:idx].strip(), mix[idx + 1:].strip()
+            # comment, ctype = clean_query(raw)
+
+        if audience in union_comment:
+            union_comment[audience]['comment'].append({
+                'content': comment,
+                'line': line,
+                # 'ctype': ctype
+            })
+        else:
+            union_comment[audience] = {}
+            union_comment[audience]['comment'] = [{
+                'content': comment,
+                'line': line,
+                # 'ctype': ctype
+            }]
+
+    for key, allcomment in union_comment.items():
+        appendcomment = []
+        line = -10
+        for cmt in allcomment['comment']:
+
+            if (cmt['line'] - line) < 2:
+                appendcomment[-1]['comment'] += cmt['content']
+
+            else:
+                appendcomment.append({
+                    'comment': cmt['content'],
+                    'audience': key,
+                    'floor': cmt['line'],
+                    # 'ctype': cmt['ctype']
+                })
+
+            line = cmt['line']
+
+        cleaned_comment.extend(appendcomment)
+
+    return cleaned_comment
+
+
+@deprecated
 def jaccard_similarity(vocab, doc):
     wlist = [v['word'] for v in vocab]
     wset = set(wlist)
@@ -400,9 +467,17 @@ def contain_url(query):
         return False, None
 
 
+@deprecated
 def query2lower(query: str) -> str:
     """Convert the query string to lowercase."""
     return query.lower()
+
+
+def rm_repeat(query: str) -> str:
+    return re.sub(
+        WORD_REPEAT_REGEX, r'\1',
+        re.sub(CHAR_REPEAT_REGEX, r'\1\1', query)
+    )
 
 
 def to_lower(query: str) -> str:
@@ -433,6 +508,7 @@ def to_halfwidth(query: str) -> str:
     return rstring
 
 
+@deprecated
 def query2halfwidth(query: str) -> str:
     """Convert the query string to halfwidth."""
     """

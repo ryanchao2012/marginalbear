@@ -18,10 +18,10 @@ class Post(models.Model):
     update_count = models.IntegerField(default=0)
     allow_update = models.BooleanField(default=True)
 
-    title_raw = models.CharField(max_length=1023)
-    title_cleaned = models.CharField(max_length=1023)
-    comment_raw = models.TextField()
-    comment_cleaned = models.TextField()
+    # title_raw = models.CharField(max_length=1023)
+    # title_cleaned = models.CharField(max_length=1023)
+    # comment_raw = models.TextField()
+    # comment_cleaned = models.TextField()
 
     quality = models.FloatField(default=0.0)
     category = models.CharField(max_length=31, null=True, blank=True)
@@ -43,6 +43,25 @@ class Netizen(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Content(models.Model):
+    ctype = models.CharField(max_length=31, choices=TYPE_CHOICES, default='text')
+    category = models.CharField(max_length=31, null=True, blank=True)
+    tokenizer = models.CharField(max_length=63)
+    tokenized = models.CharField(max_length=1023)
+    grammar = models.CharField(max_length=1023)
+    retrieval_count = models.IntegerField(default=0)
+    post = models.ForeignKey('Post', on_delete=models.CASCADE)
+    quality = models.FloatField(default=0.0)
+
+    class Meta:
+        verbose_name = "Content"
+        verbose_name_plural = "Content"
+        unique_together = ('post', 'tokenizer')
+
+    def __str__(self):
+        return '<{}>{}'.format(self.tokenizer, self.tokenized)
 
 
 class Title(models.Model):
@@ -91,7 +110,11 @@ class Vocabulary(models.Model):
     pos = models.CharField(max_length=31, blank=True, null=True)
     post = models.ManyToManyField('Post', blank=True)
     comment = models.ManyToManyField('Comment', blank=True)
-    postfreq = models.IntegerField(default=0)
+    content = models.ManyToManyField('Content', blank=True)
+    title = models.ManyToManyField('Title', blank=True)
+    # postfreq = models.IntegerField(default=0)
+    titlefreq = models.IntegerField(default=0)
+    contentfreq = models.IntegerField(default=0)
     commentfreq = models.IntegerField(default=0)
     stopword = models.BooleanField(default=False)
     quality = models.FloatField(default=0.0)

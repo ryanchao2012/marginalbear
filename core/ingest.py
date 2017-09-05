@@ -19,15 +19,11 @@ logger.addHandler(ch)
 class PsqlIngestScript(PsqlQueryScript):
 
     upsert_post_sql = '''
-            INSERT INTO pttcorpus_post(title_raw, title_cleaned,
-                                       comment_raw, comment_cleaned,
-                                       tag, spider, url,
+            INSERT INTO pttcorpus_post(tag, spider, url,
                                        author_id, quality,
                                        publish_date, last_update,
                                        update_count, allow_update)
-            SELECT unnest( %(title_raw)s ), unnest( %(title_cleaned)s ),
-                   unnest( %(comment_raw)s ), unnest( %(comment_cleaned)s ),
-                   unnest( %(tag)s ), unnest( %(spider)s ), unnest( %(url)s ),
+            SELECT unnest( %(tag)s ), unnest( %(spider)s ), unnest( %(url)s ),
                    unnest( %(author)s ), unnest( %(quality)s ),
                    unnest( %(publish_date)s ), unnest( %(last_update)s ),
                    unnest( %(update_count)s ), unnest( %(allow_update)s )
@@ -41,12 +37,16 @@ class PsqlIngestScript(PsqlQueryScript):
     '''
 
     insert_vocab_sql = '''
-            INSERT INTO pttcorpus_vocabulary(word, tokenizer, pos,
-                                             quality,
-                                             postfreq, commentfreq, stopword)
-            SELECT unnest( %(word)s ), unnest( %(tokenizer)s ), unnest( %(pos)s ),
-                   unnest( %(quality)s ),
-                   unnest( %(postfreq)s ), unnest( %(commentfreq)s ), unnest( %(stopword)s )
+            INSERT INTO pttcorpus_vocabulary(word, tokenizer,
+                                             pos, quality,
+                                             postfreq, titlefreq,
+                                             contentfreq, commentfreq,
+                                             stopword)
+            SELECT unnest( %(word)s ), unnest( %(tokenizer)s ),
+                   unnest( %(pos)s ), unnest( %(quality)s ),
+                   unnest( %(postfreq)s ), unnest( %(titlefreq)s ),
+                   unnest( %(contentfreq)s ), unnest( %(commentfreq)s ),
+                   unnest( %(stopword)s )
             ON CONFLICT (word, tokenizer, pos) DO
             UPDATE SET
                 stopword=pttcorpus_vocabulary.stopword
@@ -59,6 +59,24 @@ class PsqlIngestScript(PsqlQueryScript):
             ON CONFLICT (vocabulary_id, post_id) DO
             UPDATE SET
                 post_id = pttcorpus_vocabulary_post.post_id
+            RETURNING vocabulary_id;
+    '''
+
+    upsert_vocab2title_sql = '''
+            INSERT INTO pttcorpus_vocabulary_title (vocabulary_id, title_id)
+            SELECT unnest( %(vocabulary_id)s ), unnest( %(title_id)s )
+            ON CONFLICT (vocabulary_id, title_id) DO
+            UPDATE SET
+                title_id = pttcorpus_vocabulary_post.title_id
+            RETURNING vocabulary_id;
+    '''
+
+    upsert_vocab2content_sql = '''
+            INSERT INTO pttcorpus_vocabulary_title (vocabulary_id, content_id)
+            SELECT unnest( %(vocabulary_id)s ), unnest( %(content_id)s )
+            ON CONFLICT (vocabulary_id, content_id) DO
+            UPDATE SET
+                content_id = pttcorpus_vocabulary_post.content_id
             RETURNING vocabulary_id;
     '''
 
@@ -76,6 +94,22 @@ class PsqlIngestScript(PsqlQueryScript):
             SET postfreq = new.postfreq
             FROM (SELECT unnest( %(id_)s ) as id,
                          unnest( %(postfreq)s ) as postfreq) as new
+            WHERE old.id = new.id;
+    '''
+
+    update_vocab_titlefreq_sql = '''
+            UPDATE pttcorpus_vocabulary AS old
+            SET titlefreq = new.titlefreq
+            FROM (SELECT unnest( %(id_)s ) as id,
+                         unnest( %(titlefreq)s ) as titlefreq) as new
+            WHERE old.id = new.id;
+    '''
+
+    update_vocab_contentfreq_sql = '''
+            UPDATE pttcorpus_vocabulary AS old
+            SET contentfreq = new.contentfreq
+            FROM (SELECT unnest( %(id_)s ) as id,
+                         unnest( %(contentfreq)s ) as contentfreq) as new
             WHERE old.id = new.id;
     '''
 
@@ -98,6 +132,21 @@ class PsqlIngestScript(PsqlQueryScript):
     '''
 
     insert_title_sql = '''
+            INSERT INTO pttcorpus_title(ctype, tokenizer,
+                                   tokenized, grammar,
+                                   quality,
+                                   retrieval_count, post_id)
+            SELECT unnest( %(ctype)s ), unnest( %(tokenizer)s ),
+                   unnest( %(tokenized)s ), unnest( %(grammar)s ),
+                   unnest( %(quality)s ),
+                   unnest( %(retrieval_count)s ), unnest( %(post_id)s )
+            ON CONFLICT (post_id, tokenizer) DO
+            UPDATE SET
+                retrieval_count = pttcorpus_title.retrieval_count
+            RETURNING id;
+    '''
+
+    insert_content_sql = '''
             INSERT INTO pttcorpus_title(ctype, tokenizer,
                                    tokenized, grammar,
                                    quality,
@@ -155,6 +204,50 @@ class PsqlIngestScript(PsqlQueryScript):
     '''
 
 
+class PsqlIngesterV3(PsqlIngestScript):
+
+    insert_vocab_sql = '''
+            INSERT INTO pttcorpus_vocabulary(word, tokenizer,
+                                             pos, quality,
+                                             titlefreq, contentfreq,
+                                             commentfreq, stopword)
+            SELECT unnest( %(word)s ), unnest( %(tokenizer)s ),
+                   unnest( %(pos)s ), unnest( %(quality)s ),
+                   unnest( %(titlefreq)s ), unnest( %(contentfreq)s ),
+                   unnest( %(commentfreq)s ), unnest( %(stopword)s )
+            ON CONFLICT (word, tokenizer, pos) DO
+            UPDATE SET
+                stopword=pttcorpus_vocabulary.stopword
+            RETURNING id, word, pos, tokenizer;
+    '''
+
+    def __init__(self, tokenizer, logger_name='psql_ingester'):
+        self.tokenizer = tokenizer
+        self.logger = logging.getLogger(logger_name)
+
+    def _query_all(self, sql_string, data=None):
+        psql = PsqlQuery()
+        fetched, schema = psql.query_all(sql_string, data)
+        return fetched, schema
+
+    def insert_vocab_ignore_docfreq(self, words):
+
+        distinct = list({(w.word, w.pos) for w in words})
+        num = len(distinct)
+        word = [d[0] for d in distinct]
+        pos = [d[1] for d in distinct]
+        tokenizer = [self.tokenizer for _ in range(num)]
+        quality = [0.0 for _ in range(num)]
+        titlefreq = [0 for _ in range(num)]
+        contentfreq = [0 for _ in range(num)]
+        commentfreq = [0 for _ in range(num)]
+        stopword = [False for _ in range(num)]
+        psql = PsqlQuery()
+        vocab_bundle = psql.upsert(self.insert_vocab_sql, locals())
+        returned_schema = dict(id=0, word=1, pos=2, tokenizer=3)
+        return vocab_bundle, returned_schema
+
+
 class PsqlIngester(PsqlIngestScript):
     """Ingester for postgresql."""
 
@@ -202,8 +295,10 @@ class PsqlIngester(PsqlIngestScript):
         pos = [d[1] for d in distinct]
         tokenizer = [self.tokenizer for _ in range(num)]
         quality = [0.0 for _ in range(num)]
-        postfreq = [-1 for _ in range(num)]
-        commentfreq = [-1 for _ in range(num)]
+        postfreq = [0 for _ in range(num)]
+        # titlefreq = [0 for _ in range(num)]
+        # contentfreq = [0 for _ in range(num)]
+        commentfreq = [0 for _ in range(num)]
         stopword = [False for _ in range(num)]
         psql = PsqlQuery()
         vocab_bundle = psql.upsert(self.insert_vocab_sql, locals())
