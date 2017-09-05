@@ -15,7 +15,6 @@ class Post(models.Model):
     author = models.ForeignKey('Netizen', on_delete=models.SET_NULL, to_field='name', null=True)
     publish_date = models.DateTimeField(default=timezone.now)
     last_update = models.DateTimeField(default=timezone.now)
-    update_count = models.IntegerField(default=0)
     allow_update = models.BooleanField(default=True)
 
     # title_raw = models.CharField(max_length=1023)
@@ -33,9 +32,9 @@ class Post(models.Model):
 class Netizen(models.Model):
     name = models.CharField(max_length=63, unique=True)
     category = models.CharField(max_length=31, null=True, blank=True)
-    quality = models.FloatField(default=0.0)
-    posts = models.IntegerField(default=0)
-    comments = models.IntegerField(default=0)
+    quality = models.FloatField(default=0.0, null=True, blank=True)
+    posts = models.IntegerField(default=0, null=True, blank=True)
+    comments = models.IntegerField(default=0, null=True, blank=True)
 
     class Meta:
         verbose_name = "Netizen"
