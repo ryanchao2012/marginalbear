@@ -117,6 +117,7 @@ class Vocabulary(models.Model):
     commentfreq = models.IntegerField(default=0)
     stopword = models.BooleanField(default=False)
     quality = models.FloatField(default=0.0)
+    category = models.CharField(max_length=31, null=True, blank=True)
 
     class Meta:
         verbose_name = 'VOCABULARY'
@@ -135,8 +136,8 @@ class IP(models.Model):
 class Association(models.Model):
     vocabt = models.ForeignKey('Vocabulary', on_delete=models.CASCADE, related_name='wordpost')
     vocabc = models.ForeignKey('Vocabulary', on_delete=models.CASCADE, related_name='wordcomment')
-    pxy = models.IntegerField(default=0, null=True, blank=True)
-    pmi = models.FloatField(default=0.0, null=True, blank=True)
+    pairfreq = models.IntegerField(default=0, null=True, blank=True)
+    npmi = models.FloatField(default=0.0, null=True, blank=True)
     confidence = models.FloatField(default=0.0, null=True, blank=True)
     tokenizer = models.CharField(max_length=31)
 
