@@ -30,7 +30,7 @@ for line in fileinput.input():
     update = datetime.datetime.now()
 
     print(
-        '{id_}\t{tag}\t{spider}\t{url}\t{author}\t{publish}\t{update}\t{allow}\t{quality}'.format(
+        '"{id_}"\t"{tag}"\t"{spider}"\t"{url}"\t"{author}"\t"{publish}"\t"{update}"\t"{allow}"\t"{quality}"'.format(
             id_=id_field,
             tag=tag,
             spider=spider,

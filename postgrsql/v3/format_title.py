@@ -34,10 +34,12 @@ for line in fileinput.input():
         words = [Word(title_cleaned, 'url')]
 
     tokenized = ' '.join([w.word.strip() for w in words])
-    grammar = ' '.join([w.pos.strip() for w in words])
+    tokenized = tokenized.replace('\\', '\\\\')
+    tokenized = tokenized.replace('"', '\\"').strip()
+    grammar = ' '.join([w.pos.strip() for w in words]).strip()
 
     print(
-        '{ctype}\t{tokenizer}\t{tokenized}\t{grammar}\t{retrieval_count}\t{post}\t{quality}'.format(
+        '"{ctype}"\t"{tokenizer}"\t"{tokenized}"\t"{grammar}"\t"{retrieval_count}"\t"{post}"\t"{quality}"'.format(
             ctype=ctype,
             tokenizer=tokenizer,
             tokenized=tokenized,

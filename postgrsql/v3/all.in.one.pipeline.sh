@@ -11,7 +11,7 @@ echo "Format post fields from crawler dump."
 pv $basedir/post_dump.jl | parallel -j4 --pipe --round-robin --block 10K --line-buffer python format_post.py >> $basedir/post_formatted.csv
 rm -f $basedir/post_dump.jl
 echo "Extract authors from post_formatted.csv."
-sed 1d $basedir/post_formatted.csv | cut -f 5 | sort | uniq > $basedir/author
+sed 1d $basedir/post_formatted.csv | cut -f 5 | sort | uniq | sed /^$/d > $basedir/author
 echo "Insert authors to table pttcorpus_netizen."
 psql -U okbotadmin -d okbotdb -f insert_author.sql
 psql -U okbotadmin -d okbotdb -f insert_post.sql
