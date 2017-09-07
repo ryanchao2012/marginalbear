@@ -4,7 +4,9 @@ import json
 for line in fileinput.input():
     fields = json.loads(line)
     id_field = fields['id']
-    tokenized = fields['tokenized'].split()
+    tokenized = fields['tokenized']
+    tokenized = tokenized.replace('\\', '\\\\')
+    tokenized = tokenized.replace('"', '\\"').split()
     grammar = fields['grammar'].split()
     tokenizer = fields['tokenizer']
 
