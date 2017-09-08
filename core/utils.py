@@ -106,6 +106,25 @@ class Comment(object):
                 self.__setattr__(k, v)
 
 
+class Title(object):
+
+    post_id = -1
+    quality = 0.0
+    ctype = 'text'
+    category = ''
+    retrieval_count = 0
+    floor = 1
+    body = ''
+    audience = ''
+
+    def __init__(self, vocabs, tokenizer_tag, **kwargs):
+        self.vocabs = vocabs
+        self.tokenizer_tag = tokenizer_tag
+        for k, v in kwargs.items():
+            if self.__getattribute__(k) is not None:
+                self.__setattr__(k, v)
+
+
 class LengthNotMatchException(Exception):
     pass
 
@@ -240,9 +259,19 @@ class PsqlQueryScript(object):
         WHERE vocabulary_id IN %s;
     '''
 
+    query_vocab2title_by_vid_sql = '''
+        SELECT vocabulary_id, title_id FROM pttcorpus_vocabulary_title
+        WHERE vocabulary_id IN %s;
+    '''
+
     query_vocab2post_by_pid_sql = '''
         SELECT vocabulary_id, post_id FROM pttcorpus_vocabulary_post
         WHERE post_id IN %s;
+    '''
+
+    query_vocab2post_by_tid_sql = '''
+        SELECT vocabulary_id, title_id FROM pttcorpus_vocabulary_title
+        WHERE title_id IN %s;
     '''
 
     query_vocab2comment_by_vid_sql = '''
@@ -257,6 +286,10 @@ class PsqlQueryScript(object):
 
     query_post_by_id_sql = '''
         SELECT * FROM pttcorpus_post WHERE id IN %s;
+    '''
+
+    query_title_by_id_sql = '''
+        SELECT * FROM pttcorpus_title WHERE id IN %s;
     '''
 
     query_post_by_url_sql = '''
@@ -276,6 +309,13 @@ class PsqlQueryScript(object):
     query_post_by_vid_sql = '''
         SELECT post_id FROM pttcorpus_vocabulary_post
         WHERE vocabulary_id IN %s;
+    '''
+
+    query_vocab_group_by_title_sql = '''
+        SELECT title_id, array_agg(vocabulary_id) as vocabulary_group
+        FROM pttcorpus_vocabulary_title
+        WHERE title_id in %s
+        GROUP BY title_id;
     '''
 
     query_title_vocab_ids_by_post_id_sql = '''

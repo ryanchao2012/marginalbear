@@ -73,16 +73,33 @@ class PsqlChatCacheScript(object):
 
 class RetrievalBase(PsqlQueryScript):
     max_query_post_num = 20000
+    max_query_title_num = 50000
     max_vocab_postfreq = 10000
 
     query_post_by_id_sql = '''
         SELECT * FROM pttcorpus_post WHERE id IN %s ORDER BY publish_date DESC;
     '''
 
+    query_title_by_id_sql = '''
+        SELECT * FROM pttcorpus_title WHERE id IN %s ORDER BY quality DESC;
+    '''
+
+    guery_vocab_group_by_title_using_vocab_id_sql = '''
+        SELECT title_id, array_agg(vocabulary_id) AS vocabulary_group
+        FROM pttcorpus_vocabulary_title
+        WHERE title_id IN
+            (SELECT title_id
+             FROM pttcorpus_vocabulary_title
+             WHERE vocabulary_id IN %(vid)s
+             AND title_id NOT IN %(tid)s)
+        GROUP BY title_id;
+    '''
+
     def __init__(
         self,
         tokenizer_tag,
         excluded_post_ids=[],
+        excluded_title_ids=[],
         pweight={},
         ranker=jaccard_similarity,
         logger_name='retrievalbase'
@@ -139,6 +156,21 @@ class RetrievalBase(PsqlQueryScript):
 
         return vocab, vschema
 
+    def query_vocab_by_title_id(self, title_id):
+        tid = list(set(title_id))
+
+        psql = PsqlQuery()
+        vocab2title, schema = psql.query_all(
+            self.query_vocab2post_by_tid_sql, (tuple(tid),)
+        )
+
+        vocab_id = list({v2t[schema['vocabulary_id']] for v2t in vocab2title})
+        vocab, vschema = psql.query_all(
+            self.query_vocab_by_id, (tuple(vocab_id),)
+        )
+
+        return vocab, vschema
+
     def query_vocab_by_comment_id(self, comment_id):
         cmtid = list(set(comment_id))
 
@@ -162,12 +194,27 @@ class RetrievalBase(PsqlQueryScript):
 
         return [v2p[schema['post_id']] for v2p in vocab2post]
 
+    def query_vocab2title(self, vocab_id):
+        psql = PsqlQuery()
+        vocab2post, schema = psql.query_all(
+            self.query_vocab2title_by_vid_sql, (tuple(vocab_id),)
+        )
+
+        return [v2p[schema['title_id']] for v2p in vocab2post]
+
     def query_post_by_id(self, post_id):
         psql = PsqlQuery()
         post = psql.query(self.query_post_by_id_sql, (tuple(post_id),))
         schema = psql.schema
 
         return post, schema
+
+    def query_title_by_id(self, title_id):
+        psql = PsqlQuery()
+        title = psql.query(self.query_title_by_id_sql, (tuple(title_id),))
+        schema = psql.schema
+
+        return title, schema
 
     def query_title_by_post(self, post_id):
         bundle = [(id_, self.tokenizer_tag) for id_ in post_id]
@@ -222,6 +269,57 @@ class RetrievalBase(PsqlQueryScript):
             )
 
         return query_comments, cmt_id
+
+    def query_vocab_group_by_title(self, title_id):
+        psql = PsqlQuery()
+        title2vocab, schema = psql.query_all(
+            self.query_vocab_group_by_title, (tuple(title_id),)
+        )
+
+        return title2vocab, schema
+
+    def guery_vocab_group_by_title_using_vocab(self, vocab_id, excluded_title_id):
+        psql = PsqlQuery()
+
+        if not bool(excluded_title_id):
+            excluded_title_id = [-1]
+
+        title2vocab, schema = psql.query_all(
+            self.guery_vocab_group_by_title_using_vocab_id_sql,
+            {'vid': tuple(vocab_id), 'tid': tuple(excluded_title_id)}
+        )
+
+        return title2vocab, schema
+
+    def get_title_obj(self, vocab_id):
+        if not bool(vocab_id):
+            return [], []
+
+        title2vocab, t2vschema = self.guery_vocab_group_by_title_using_vocab(
+            vocab_id, self.excluded_title_ids
+        )
+
+        title_id = list({t2v['title_id'] for t2v in title2vocab})
+        vocab_id = list({v for t2v in title2vocab for v in t2v['vocabulary_group']})
+
+
+        for i, tt in enumerate(title_generator):
+            if tt[tschema['id']] not in self.excluded_title_ids:
+                titles.append(tt)
+            if i > self.max_query_title_num:
+                break
+
+        title_id = [tt[tschema['id']] for tt in titles]
+        if not bool(title_id):
+            return [], []
+
+        tvocab, vschema = self.query_vocab_by_title_id(title_id)
+
+        tvocab_dict = {
+            (v[vschema['word']], v[vschema['pos']], self.tokenizer_tag): v
+            for v in tvocab
+        }
+
 
     def get_post_obj(self, vocab_id):
         if not bool(vocab_id):
