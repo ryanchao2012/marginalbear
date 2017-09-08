@@ -9,9 +9,24 @@ CHAR_REPEAT_REGEX = r'(.)\1+'
 WORD_REPEAT_REGEX = r'(\S{2,}?)\1+'
 
 
+class ANSIColors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 def deprecated(f):
     def _inner(*args, **kargs):
-        print('WARNING: This method: {} is deprecated.'.format(f.__name__))
+        print(
+            ANSIColors.WARNING +
+            '[WARNING] {}: this method is deprecated.'.format(f.__name__) +
+            ANSIColors.ENDC
+        )
         return f(*args, **kargs)
     return _inner
 
@@ -55,11 +70,13 @@ class Word(dict):
 class Vocab(Word):
 
     quality = 0.0
-    tokenizer = 'jieba'
-    postfreq = 1
-    commentfreq = 1
+    tokenizer = 'ccjieba'
+    titlefreq = 0
+    commentfreq = 0
     stopword = False
     weight = 1.0
+    category = 'general'
+    id_ = -1
 
     def __init__(self, word, pos='__unknown__', **kwargs):
         super().__init__(word, pos=pos)
@@ -70,19 +87,18 @@ class Vocab(Word):
 
 class Post(object):
 
-    post_id = -1
     publish_date = datetime.datetime.now()
-    quality = 0.0
-    similarity_score = 0.0
-    retrieval_count = 0
-    category = ''
+    score = 0.0
+    spider = ''
     author = ''
-    body = ''
+    quality = 0.0
     url = ''
+    id_ = -1
+    comment_ids = []
+    title_ids = []
+    content_ids = []
 
-    def __init__(self, vocabs, tokenizer_tag, **kwargs):
-        self.vocabs = vocabs
-        self.tokenizer_tag = tokenizer_tag
+    def __init__(self, **kwargs):
         for k, v in kwargs.items():
             if self.__getattribute__(k) is not None:
                 self.__setattr__(k, v)
@@ -94,9 +110,12 @@ class Comment(object):
     quality = 0.0
     ctype = 'text'
     category = ''
+    score = 0.0
     retrieval_count = 0
     floor = 1
     body = ''
+    audience = ''
+    id_ = -1
 
     def __init__(self, vocabs, tokenizer_tag, **kwargs):
         self.vocabs = vocabs
@@ -112,10 +131,11 @@ class Title(object):
     quality = 0.0
     ctype = 'text'
     category = ''
+    score = 0.0
     retrieval_count = 0
     floor = 1
     body = ''
-    audience = ''
+    id_ = -1
 
     def __init__(self, vocabs, tokenizer_tag, **kwargs):
         self.vocabs = vocabs
@@ -250,7 +270,7 @@ class PsqlQueryScript(object):
         SELECT * FROM pttcorpus_vocabulary WHERE (word, pos, tokenizer) IN %s;
     '''
 
-    query_vocab_by_id = '''
+    query_vocab_by_id_sql = '''
         SELECT * FROM pttcorpus_vocabulary WHERE id IN %s;
     '''
 
@@ -292,16 +312,20 @@ class PsqlQueryScript(object):
         SELECT * FROM pttcorpus_title WHERE id IN %s;
     '''
 
+    query_comment_by_id_sql = '''
+        SELECT * FROM pttcorpus_comment WHERE id IN %s;
+    '''
+
     query_post_by_url_sql = '''
         SELECT * FROM pttcorpus_post WHERE url IN %s;
     '''
 
-    query_comment_sql = '''
+    query_comment_by_unique_sql = '''
         SELECT * FROM pttcorpus_comment
         WHERE (post_id, tokenizer) IN %s;
     '''
 
-    query_title_sql = '''
+    query_title_by_unique_sql = '''
         SELECT * FROM pttcorpus_title
         WHERE (post_id, tokenizer) IN %s;
     '''

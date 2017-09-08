@@ -558,7 +558,7 @@ class PsqlIngester(PsqlIngestScript):
 
         if len(total_vocab_id) > 0:
             qvocab, schema = self._query_all(
-                self.query_vocab_by_id,
+                self.query_vocab_by_id_sql,
                 (tuple(total_vocab_id),)
             )
             qvocab_dict = {v[schema['id']]: (v[schema['postfreq']], v[schema['commentfreq']]) for v in qvocab}

@@ -1,8 +1,11 @@
 from configparser import RawConfigParser
 import sys
 from core.utils import PsqlAbstract
-from core.chat import RetrievalJaccard
-from core.tokenizer import JiebaTokenizer
+from core.chat import RetrievalEvaluate
+from core.tokenizer import (
+    JiebaTokenizer,
+    OpenCCTokenizer
+)
 
 
 config_parser = RawConfigParser()
@@ -13,7 +16,6 @@ PsqlAbstract.set_database_info(
     config_parser.get('global', 'dbname'),
     config_parser.get('global', 'dbpassword')
 )
-
 
 
 if __name__ == '__main__':
@@ -27,9 +29,11 @@ if __name__ == '__main__':
         sys.exit(0)
     query = sys.argv[1]
 
-    words = JiebaTokenizer().cut(query)
+    words = [w for w in OpenCCTokenizer(JiebaTokenizer()).cut(query) if bool(w.word.strip())]
 
-    comment = RetrievalJaccard(words, 'jieba', query=query).retrieve()
-    response = comment.body
+    comments = RetrievalEvaluate('ccjieba').retrieve(words)
+    # response = comment.body
 
-    print('\n@', response)
+    for i, cmt in enumerate(comments, 1):
+        print('[{}] <{}> {}'.format(i, cmt.score, cmt.body))
+
