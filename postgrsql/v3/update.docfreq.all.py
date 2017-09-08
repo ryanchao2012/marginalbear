@@ -37,7 +37,7 @@ def query_vocab_id(batch_size=1000):
     for v in vocabs:
         batch.append(v[0])
         i += 1
-        if i > batch_size:
+        if i >= batch_size:
             i = 0
             yield batch
             batch = []
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     start = time.time()
 
     consumed = 0
-    for vocab_ids in query_vocab_id(batch_size=1000):
+    for vocab_ids in query_vocab_id(batch_size=5000):
         if len(vocab_ids) > 0:
             try:
                 ingester.update_vocab_titlefreq(vocab_ids)
@@ -59,6 +59,5 @@ if __name__ == '__main__':
 
             consumed += len(vocab_ids)
             logger.info('{} vocab\'s docfreq are updated'.format(consumed))
-        break
     print('Elapsed time @update_docfreq: {:.2f}sec.'.format(time.time() - start))
 
