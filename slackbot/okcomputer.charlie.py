@@ -41,21 +41,21 @@ def receive_question(message, question_string):
     message.send(answer)
 
 
-@listen_to(r' /qvocab(.*)')
+@listen_to(r'qvocab(.*)')
 def update_vocab_quality(message, word_to_update):
     ingester.update_vocab_quality(word_to_update)
     response = feedback.query_vocab_quality_by_word(word_to_update)
     message.send(response)
 
 
-@listen_to(r' /qtitle(.*)')
+@listen_to(r'qtitle(.*)')
 def update_title_quality(message, id_to_update):
     ingester.update_title_quality(id_to_update)
     response = feedback.query_title_quality_by_id(id_to_update)
     message.send(response)
 
 
-@listen_to(r' /qcomment(.*)')
+@listen_to(r'qcomment(.*)')
 def update_comment_quality(message, id_to_update):
     ingester.update_comment_quality(id_to_update)
     response = feedback.query_comment_quality_by_id(id_to_update)
