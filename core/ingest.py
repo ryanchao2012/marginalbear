@@ -121,6 +121,25 @@ class PsqlIngestScript(PsqlQueryScript):
             WHERE old.id = new.id;
     '''
 
+    update_vocab_quality_sql = '''
+            UPDATE pttcorpus_vocabulary
+            SET quality = -1.0
+            WHERE word = %(word_to_update_)s
+            RETURNING (id, word, quality);
+    '''
+
+    update_title_quality_sql = '''
+            UPDATE pttcorpus_title
+            SET quality = -1.0
+            WHERE id = %(id_)s;
+    '''
+
+    update_comment_quality_sql = '''
+            UPDATE pttcorpus_comment
+            SET quality = -1.0
+            WHERE id = %(id_)s;
+    '''
+
     insert_netizen_sql = '''
         INSERT INTO pttcorpus_netizen(name, quality, posts, comments)
         SELECT unnest( %(name)s ), unnest( %(quality)s ),
@@ -396,6 +415,28 @@ class PsqlIngester(PsqlIngestScript):
             self.update_vocab_commentfreq_sql,
             {'id_': vocab_id, 'commentfreq': freq}
         )
+
+    def update_vocab_quality(self, word_to_update):
+        psql = PsqlQuery()
+        psql.update(
+            self.update_vocab_quality_sql,
+            {'word_to_update_': word_to_update}
+        )
+
+    def update_title_quality(self, id_to_update):
+        psql = PsqlQuery()
+        psql.update(
+            self.update_title_quality_sql,
+            {'id_': id_to_update}
+        )
+
+    def update_comment_quality(self, id_to_update):
+        psql = PsqlQuery()
+        psql.update(
+            self.update_comment_quality_sql,
+            {'id_': id_to_update}
+        )
+
 
     def insert_netizen(self, raw_name):
         name = list(set(raw_name))
