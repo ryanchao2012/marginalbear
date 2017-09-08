@@ -2,11 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="ab52c3fc-5add-474a-acfc-6e0451a7fc3d" name="Default" comment="">
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/.gitignore" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/core/chat.py" afterPath="$PROJECT_DIR$/core/chat.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/core/ingest.py" afterPath="$PROJECT_DIR$/core/ingest.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/core/utils.py" afterPath="$PROJECT_DIR$/core/utils.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/slackbot/okcomputer.py" afterPath="$PROJECT_DIR$/slackbot/okcomputer.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -17,11 +15,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="okcomputer.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="okcomputer.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/slackbot/okcomputer.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="472">
-              <caret line="58" column="36" lean-forward="false" selection-start-line="58" selection-start-column="36" selection-end-line="58" selection-end-column="36" />
+            <state relative-caret-position="136">
+              <caret line="28" column="8" lean-forward="false" selection-start-line="28" selection-start-column="0" selection-end-line="28" selection-end-column="8" />
               <folding>
                 <element signature="e#16#50#0" expanded="true" />
               </folding>
@@ -76,7 +74,7 @@
       <file leaf-file-name="utils.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/core/utils.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="39">
+            <state relative-caret-position="-1289">
               <caret line="277" column="53" lean-forward="false" selection-start-line="277" selection-start-column="53" selection-end-line="277" selection-end-column="53" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
@@ -85,15 +83,15 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="chat.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="chat.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/core/chat.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="219">
-              <caret line="189" column="57" lean-forward="false" selection-start-line="189" selection-start-column="57" selection-end-line="189" selection-end-column="57" />
+            <state relative-caret-position="1605">
+              <caret line="165" column="80" lean-forward="true" selection-start-line="165" selection-start-column="80" selection-end-line="165" selection-end-column="80" />
               <folding>
                 <element signature="e#706#2338#0" expanded="false" />
-                <element signature="e#15579#19682#0" expanded="false" />
-                <element signature="e#19682#19722#0" expanded="false" />
+                <element signature="e#15576#19679#0" expanded="false" />
+                <element signature="e#19679#19719#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -129,14 +127,14 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/core/ingest.py" />
-        <option value="$PROJECT_DIR$/core/chat.py" />
         <option value="$PROJECT_DIR$/core/utils.py" />
         <option value="$PROJECT_DIR$/slackbot/okcomputer.py" />
+        <option value="$PROJECT_DIR$/core/chat.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="24" />
+    <option name="x" value="92" />
     <option name="y" value="22" />
     <option name="width" value="1440" />
     <option name="height" value="817" />
@@ -210,7 +208,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="24" y="22" width="1440" height="817" extended-state="0" />
+    <frame x="92" y="22" width="1440" height="817" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -419,9 +417,19 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/slackbot/okcomputer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="28" column="8" lean-forward="false" selection-start-line="28" selection-start-column="0" selection-end-line="28" selection-end-column="8" />
+          <folding>
+            <element signature="e#16#50#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/core/utils.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="39">
+        <state relative-caret-position="-1289">
           <caret line="277" column="53" lean-forward="false" selection-start-line="277" selection-start-column="53" selection-end-line="277" selection-end-column="53" />
           <folding>
             <element signature="e#0#11#0" expanded="true" />
@@ -431,22 +439,12 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/core/chat.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="219">
-          <caret line="189" column="57" lean-forward="false" selection-start-line="189" selection-start-column="57" selection-end-line="189" selection-end-column="57" />
+        <state relative-caret-position="1605">
+          <caret line="165" column="80" lean-forward="true" selection-start-line="165" selection-start-column="80" selection-end-line="165" selection-end-column="80" />
           <folding>
             <element signature="e#706#2338#0" expanded="false" />
-            <element signature="e#15579#19682#0" expanded="false" />
-            <element signature="e#19682#19722#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/slackbot/okcomputer.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="472">
-          <caret line="58" column="36" lean-forward="false" selection-start-line="58" selection-start-column="36" selection-end-line="58" selection-end-column="36" />
-          <folding>
-            <element signature="e#16#50#0" expanded="true" />
+            <element signature="e#15576#19679#0" expanded="false" />
+            <element signature="e#19679#19719#0" expanded="false" />
           </folding>
         </state>
       </provider>

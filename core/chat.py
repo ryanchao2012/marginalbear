@@ -187,7 +187,7 @@ class RetrievalBase(PsqlQueryScript):
     def query_vocab_quality_by_id(self, vocab_word):
         psql = PsqlQuery()
         vocab, vschema = psql.query_all(
-            self.query_vocab_quality_by_word, (vocab_word,)
+            self.query_vocab_quality_by_word, vocab_word
         )
         return vocab, vschema
 

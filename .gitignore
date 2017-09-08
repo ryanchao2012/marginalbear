@@ -15,3 +15,4 @@ pokearound/
 *.out
 *.swp
 .cache
+*.xml
