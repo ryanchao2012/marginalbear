@@ -1,6 +1,6 @@
 from configparser import RawConfigParser
 import sys
-from core.utils import PsqlAbstract
+from core.utils import PsqlAbstract, clean_query
 from core.chat import RetrievalEvaluate
 from core.tokenizer import (
     JiebaTokenizer,
@@ -27,13 +27,13 @@ if __name__ == '__main__':
             '''
         )
         sys.exit(0)
-    query = sys.argv[1]
-
+    raw = sys.argv[1]
+    query, ctype = clean_query(raw)
     words = [w for w in OpenCCTokenizer(JiebaTokenizer()).cut(query) if bool(w.word.strip())]
-
+    print(words)
     comments = RetrievalEvaluate('ccjieba').retrieve(words)
     # response = comment.body
 
     for i, cmt in enumerate(comments, 1):
-        print('[{}] <{}> {}'.format(i, cmt.score, cmt.body))
+        print('[{}] <{:.2f}> {}'.format(i, cmt.score, cmt.body))
 

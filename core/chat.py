@@ -75,8 +75,8 @@ class PsqlChatCacheScript(object):
 
 class RetrievalBase(PsqlQueryScript):
     # max_query_post_num = 20000
-    max_query_title_num = 50000
-    max_query_comment_num = 50000
+    max_query_title_num = 30000
+    max_query_comment_num = 10000
     max_vocab_postfreq = 10000
 
     query_title_by_id_sql = '''
@@ -130,6 +130,7 @@ class RetrievalBase(PsqlQueryScript):
     ):
         self.excluded_post_ids = excluded_post_ids
         self.excluded_title_ids = excluded_title_ids
+        self.excluded_comment_ids = excluded_comment_ids
         self.tokenizer_tag = tokenizer_tag
         self.pweight = pweight
         self.title_ranker = title_ranker
@@ -141,8 +142,8 @@ class RetrievalBase(PsqlQueryScript):
             pos=tp[schema['pos']],
             weight=self.pweight.get(tp[schema['pos']], 1.0),
             tokenizer=tp[schema['tokenizer']],
-            postfreq=tp[schema['postfreq']],
             commentfreq=tp[schema['commentfreq']],
+            titlefreq=tp[schema['titlefreq']],
             quality=tp[schema['quality']],
             stopword=tp[schema['stopword']],
             id_=tp[schema['id']]
@@ -230,7 +231,7 @@ class RetrievalBase(PsqlQueryScript):
             self.query_vocab2title_by_vid_sql, (tuple(vocab_id),)
         )
 
-        return [v2p[schema['title_id']] for v2p in vocab2post]
+        return vocab2post, schema
 
     def query_post_by_id(self, post_id):
         psql = PsqlQuery()
@@ -243,7 +244,7 @@ class RetrievalBase(PsqlQueryScript):
         psql = PsqlQuery()
         title = psql.query(
             self.query_title_by_id_sql,
-            {'id_': (tuple(title_id),), 'tok': self.tokenizer_tag}
+            {'id_': tuple(title_id), 'tok': self.tokenizer_tag}
         )
         schema = psql.schema
 
@@ -253,7 +254,7 @@ class RetrievalBase(PsqlQueryScript):
         psql = PsqlQuery()
         comment = psql.query(
             self.query_comment_by_id_sql,
-            {'id_': (tuple(comment_id),), 'tok': self.tokenizer_tag}
+            {'id_': tuple(comment_id), 'tok': self.tokenizer_tag}
         )
         schema = psql.schema
 
@@ -278,7 +279,7 @@ class RetrievalBase(PsqlQueryScript):
         if not bool(post_id):
             return []
 
-        # Bottleneck
+        # Bottleneck ?
         comments, cmtschema = self.query_comment_by_post(post_id)
         #
 
@@ -290,7 +291,8 @@ class RetrievalBase(PsqlQueryScript):
         if not bool(cmtid):
             return []
 
-        cvocab, vschema = self.query_all(self.query_vocab_by_id_sql, (tuple(vid),))
+        psql = PsqlQuery()
+        cvocab, vschema = psql.query_all(self.query_vocab_by_id_sql, (tuple(vid),))
 
         c2v_dict = {
             c2v[c2vschema['comment_id']]: c2v[c2vschema['vocabulary_group']]
@@ -301,14 +303,16 @@ class RetrievalBase(PsqlQueryScript):
             v[vschema['id']]: v
             for v in cvocab
         }
-
         comment_objs = []
         for i, cmt in enumerate(comments):
             if cmt[cmtschema['id']] not in self.excluded_comment_ids:
-                vocabs = [
-                    self._construct_vocab(v_dict(vid), vschema)
-                    for vid in c2v_dict[cmt[cmtschema['id']]]
-                ]
+                if cmt[cmtschema['id']] in c2v_dict:
+                    vocabs = [
+                        self._construct_vocab(v_dict[vid], vschema)
+                        for vid in c2v_dict[cmt[cmtschema['id']]]
+                    ]
+                else:
+                    vocabs = []
 
                 comment_objs.append(
                     Comment(
@@ -414,7 +418,8 @@ class RetrievalBase(PsqlQueryScript):
 
         title_generator, tschema = self.query_title_by_id(tid)
 
-        tvocab, vschema = self.query_all(self.query_vocab_by_id_sql, (tuple(vid),))
+        psql = PsqlQuery()
+        tvocab, vschema = psql.query_all(self.query_vocab_by_id_sql, (tuple(vid),))
 
         t2v_dict = {
             t2v[t2vschema['title_id']]: t2v[t2vschema['vocabulary_group']]
@@ -424,12 +429,11 @@ class RetrievalBase(PsqlQueryScript):
             v[vschema['id']]: v
             for v in tvocab
         }
-
         title_objs = []
         for i, tt in enumerate(title_generator):
             if tt[tschema['post_id']] not in self.excluded_post_ids:
                 vocabs = [
-                    self._construct_vocab(v_dict(vid), vschema)
+                    self._construct_vocab(v_dict[vid], vschema)
                     for vid in t2v_dict[tt[tschema['id']]]
                 ]
 
@@ -441,7 +445,6 @@ class RetrievalBase(PsqlQueryScript):
                         quality=tt[tschema['quality']],
                         ctype=tt[tschema['quality']],
                         retrieval_count=tt[tschema['quality']],
-                        floor=tt[tschema['floor']],
                         body=''.join(tt[tschema['tokenized']].split()),
                         id_=tt[tschema['id']]
                     )
@@ -465,7 +468,7 @@ class RetrievalBase(PsqlQueryScript):
         top_results = []
         max_rank = max(rank)
         scores = []
-        for m, idx in enumerate(idx_ranking):
+        for m, idx in enumerate(idx_ranking, 1):
             if m > top_num or (rank[idx] / max_rank) < threshold:
                 break
             top_results.append(target[idx])
@@ -476,9 +479,9 @@ class RetrievalBase(PsqlQueryScript):
 
 class RetrievalEvaluate(RetrievalBase):
 
-    max_top_title_num = 10
-    max_top_comment_num = 50
-    similarity_ranking_threshold = 0.9
+    max_top_title_num = 20
+    max_top_comment_num = 15
+    similarity_ranking_threshold = 0.8
 
     def __call__(self, words):
         return self.retrieve(words)
@@ -508,17 +511,21 @@ class RetrievalEvaluate(RetrievalBase):
 
         return top_posts
 
-    def get_top_title(self, words):
+    def get_top_titles(self, words):
         if not bool(words):
             return []
         tic = time.time()
         vocabs_objs = self.get_vocab_obj(words)
+        for v in vocabs_objs:
+            self.logger.info('{}, {}, {}, {}'.format(v.word, v.pos, v.stopword, v.titlefreq))
+        self.logger.info('Fetch {} vocab objs'.format(len(vocabs_objs)))
         self.logger.info('Elapsed time @get_vocab_obj: {:.2f}'.format(time.time() - tic))
 
-        vocab_id = [v.id_ for v in vocabs_objs]
+        fltr_vocab_id = [v.id_ for v in vocabs_objs if not (v.stopword or v.pos == 'x')]
 
         tic = time.time()
-        title_objs = self.get_title_obj(vocab_id)
+        title_objs = self.get_title_obj(fltr_vocab_id)
+        self.logger.info('Fetch {} title objs'.format(len(title_objs)))
         self.logger.info('Elapsed time @get_title_obj: {:.2f}'.format(time.time() - tic))
 
         if not bool(title_objs):
@@ -548,6 +555,7 @@ class RetrievalEvaluate(RetrievalBase):
 
         tic = time.time()
         comment_objs = self.get_comment_obj(post_id)
+        self.logger.info('Fetch {} comment objs'.format(len(comment_objs)))
         self.logger.info('Elapsed time @query_comments: {:.2f}'.format(time.time() - tic))
         # query_comments = [cmt for cmt in comment_objs if cmt.ctype == 'text']
 
@@ -566,7 +574,7 @@ class RetrievalEvaluate(RetrievalBase):
 
         # Calculate total score
         cmt_score = []
-        w1, w2, w3, w4 = 0.1, 20.0, 0.01, 1.0
+        w1, w2, w3, w4 = 0.5, 0.8, 0.08, -1.0
         for cmt in comment_objs:
             doc_score = sum([
                 docfreq[(v.word, v.pos)]
@@ -589,7 +597,6 @@ class RetrievalEvaluate(RetrievalBase):
         return top_comments
 
     def retrieve(self, words):
-        # top_posts = self.get_top_posts(words)
         top_titles = self.get_top_titles(words)
         top_comments = self.get_top_comments(top_titles)
 
