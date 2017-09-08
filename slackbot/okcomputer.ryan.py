@@ -47,10 +47,11 @@ def algorithm(raw):
     return reply
 
 
-@listen_to(r'『問題』(.*)')
+@listen_to(r'(.*)')
 def receive_question(message, question_string):
-    answer = algorithm(question_string)
-    message.send(answer)
+    if message._body['channel'] == 'C719E5X38':
+        answer = algorithm(question_string)
+        message.send(answer)
 
 
 def main():

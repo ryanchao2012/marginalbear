@@ -84,5 +84,5 @@ class JiebaPosWeight:
         eng=5.0,
         y=0.5,
         ng=3.0,
-        zg=3.0,
+        zg=1.0,
     )

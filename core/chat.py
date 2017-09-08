@@ -7,7 +7,7 @@ import logging
 from collections import Counter
 from core.ranking import jaccard_similarity
 from .utils import (
-    OkLogger, Vocab, Post, Comment, Title
+    OkLogger, Vocab, Post, Comment, Title, Word
 )
 
 from core.utils import (
@@ -508,10 +508,11 @@ class RetrievalEvaluate(RetrievalBase):
     max_top_comment_num = 15
     similarity_ranking_threshold = 0.8
 
+    comp_words = {'你': [Word('大家',pos='n')], '你們': [Word('大家',pos='n')], '我': [Word('肥宅', pos='n')]}
+
     def __call__(self, words):
         return self.retrieve(words)
 
-    @deprecated
     def get_top_posts(self, words):
         if not bool(words):
             return []
@@ -622,10 +623,22 @@ class RetrievalEvaluate(RetrievalBase):
         return top_comments
 
     def retrieve(self, words):
-        top_titles = self.get_top_titles(words)
+        complement_words = self.addwords(words)
+        top_titles = self.get_top_titles(complement_words)
         top_comments = self.get_top_comments(top_titles)
 
         return top_comments
+
+    def addwords(self, words):
+        complement_words = []
+        for w in words:
+            if w.word in self.comp_words:
+                complement_words.extend(self.comp_words[w.word])
+        complement_words.extend(words)
+
+        return complement_words
+
+
 
 
 # class RetrievalJaccard(RetrievalBase):
