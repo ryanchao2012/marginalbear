@@ -70,7 +70,7 @@ class JiebaPosWeight:
         n=4.0,
         nr=7.5,
         v=2.0,
-        t=1.0,
+        t=1.5,
         z=2.5,
         r=1.0,
         m=1.5,
