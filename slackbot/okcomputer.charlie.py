@@ -41,11 +41,23 @@ def receive_question(message, question_string):
     message.send(answer)
 
 
-@listen_to(r'qvocab(.*)')
+@listen_to(r'qvocab (.*)')
 def update_vocab_quality(message, word_to_update):
-    ingester.update_vocab_quality(word_to_update)
-    response = feedback.query_vocab_quality_by_word(word_to_update)
-    message.send(response)
+    help_msg = 'Format error:\nCommand template is:\n`qvocab <word:str> <quality:float>`'
+    data = word_to_update.split()
+    if len(data) != 2:
+        message.send(help_msg)
+    else:
+        try:
+            word = data[0].strip()
+            quality = float(data[1])
+            returning = ingester.update_vocab_quality(word, quality)
+            reply = 'Vocab updated: {}'.format(returning[0])
+        except Exception as err:
+            reply = 'Exception occurred:\n```{}```'.format(err)
+        finally:
+            message.send(reply)
+
 
 
 @listen_to(r'qtitle(.*)')

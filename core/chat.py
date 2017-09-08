@@ -184,11 +184,12 @@ class RetrievalBase(PsqlQueryScript):
 
         return vocab, vschema
 
-    @deprecated
+    # @deprecated
     def query_vocab_quality_by_id(self, vocab_word):
         psql = PsqlQuery()
+        print('@@@@@', vocab_word)
         vocab, vschema = psql.query_all(
-            self.query_vocab_quality_by_word, vocab_word
+            self.query_vocab_quality_by_word_sql, (vocab_word,)
         )
         return vocab, vschema
 

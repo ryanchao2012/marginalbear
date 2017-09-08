@@ -123,8 +123,8 @@ class PsqlIngestScript(PsqlQueryScript):
 
     update_vocab_quality_sql = '''
             UPDATE pttcorpus_vocabulary
-            SET quality = -1.0
-            WHERE word = %(word_to_update_)s
+            SET quality = %(quality)s
+            WHERE word = %(word)s
             RETURNING (id, word, quality);
     '''
 
@@ -416,11 +416,11 @@ class PsqlIngester(PsqlIngestScript):
             {'id_': vocab_id, 'commentfreq': freq}
         )
 
-    def update_vocab_quality(self, word_to_update):
+    def update_vocab_quality(self, word, quality):
         psql = PsqlQuery()
-        psql.update(
+        return psql.upsert(
             self.update_vocab_quality_sql,
-            {'word_to_update_': word_to_update}
+            {'word': word, 'quality': quality}
         )
 
     def update_title_quality(self, id_to_update):
