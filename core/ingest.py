@@ -124,7 +124,8 @@ class PsqlIngestScript(PsqlQueryScript):
     update_vocab_quality_sql = '''
             UPDATE pttcorpus_vocabulary
             SET quality = -1.0
-            WHERE word = %(word_to_update_)s;
+            WHERE word = %(word_to_update_)s
+            RETURNING (id, word, quality);
     '''
 
     update_title_quality_sql = '''

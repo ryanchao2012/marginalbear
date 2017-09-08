@@ -274,6 +274,18 @@ class PsqlQueryScript(object):
         SELECT * FROM pttcorpus_vocabulary WHERE id IN %s;
     '''
 
+    query_vocab_quality_by_word_sql = '''
+        SELECT * FROM pttcorpus_vocabulary WHERE word = %s;
+    '''
+
+    query_title_quality_by_id_sql = '''
+        SELECT * FROM pttcorpus_title WHERE id = %s;
+    '''
+
+    query_comment_quality_by_id_sql = '''
+        SELECT * FROM pttcorpus_comment WHERE id = %s;
+    '''
+
     query_vocab2post_by_vid_sql = '''
         SELECT vocabulary_id, post_id FROM pttcorpus_vocabulary_post
         WHERE vocabulary_id IN %s;
