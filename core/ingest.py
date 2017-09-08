@@ -367,6 +367,21 @@ class PsqlIngester(PsqlIngestScript):
             {'id_': vocab_id, 'postfreq': freq}
         )
 
+    def update_vocab_titlefreq(self, vocab_id):
+        vocab_id = list(set(vocab_id))
+        qvocab2post, schema = self._query_all(
+            self.query_vocab2post_by_vid_sql,
+            (tuple(vocab_id),)
+        )
+        qvocab_id = [v2p[schema['vocabulary_id']] for v2p in qvocab2post]
+        vocab_cnt = collections.Counter(qvocab_id)
+        psql = PsqlQuery()
+        freq = [vocab_cnt[id_] if id_ in vocab_cnt else 0 for id_ in vocab_id]
+        psql.update(
+            self.update_vocab_titlefreq_sql,
+            {'id_': vocab_id, 'postfreq': freq}
+        )
+
     def update_vocab_commentfreq(self, vocab_id):
         vocab_id = list(set(vocab_id))
         qvocab2comment, schema = self._query_all(
