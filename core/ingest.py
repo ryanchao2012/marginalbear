@@ -132,14 +132,14 @@ class PsqlIngestScript(PsqlQueryScript):
             UPDATE pttcorpus_title
             SET quality = %(quality)s
             WHERE id = %(id_)s;
-            RETURNING (id, word, quality);
+            RETURNING (id, quality);
     '''
 
     update_comment_quality_sql = '''
             UPDATE pttcorpus_comment
             SET quality = %(quality)s
             WHERE id = %(id_)s
-            RETURNING (id, word, quality);
+            RETURNING (id, quality);
     '''
 
     insert_netizen_sql = '''

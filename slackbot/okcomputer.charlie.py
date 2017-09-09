@@ -79,7 +79,7 @@ def update_title_quality(message, id_to_update):
             message.send(reply)
 
 
-@listen_to(r'qcomment(.*)')
+@listen_to(r'qcomment (.*)')
 def update_comment_quality(message, id_to_update):
     help_msg = 'Format error:\nCommand template is:\n`qcomment <word:str> <quality:float>`'
     reply = ''
