@@ -55,7 +55,7 @@ class OpenCCTokenizer(Tokenizer):
 
 class SplitTokenizer(Tokenizer):
 
-    def cut(self, sentence):
+    def cut(self, sentence, pos=True):
         words = []
         for mix in sentence.split():
             idx = mix.rfind(':')

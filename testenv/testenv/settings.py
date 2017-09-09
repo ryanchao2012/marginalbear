@@ -21,7 +21,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = parser.get('global', 'secret_key')

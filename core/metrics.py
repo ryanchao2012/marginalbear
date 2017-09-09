@@ -3,7 +3,7 @@ import requests
 import math
 
 
-def doc2vec_ndcg(topic_words, predict_words_ls, model, k=30, ideal=1.0, ave=1, step=100):
+def doc2vec_ndcg(topic_words, predict_words_ls, model, k=30, ideal=0.5, ave=1, step=100):
     """Document-to-vector NDCG."""
     if len(predict_words_ls) <= 0:
         return 0.0

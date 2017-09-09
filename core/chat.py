@@ -614,7 +614,7 @@ class RetrievalEvaluate(RetrievalBase):
         cmt_score = []
         w_docfreq = 2.0
         w_title_sim_score = 1.0
-        w_vocab_count = -0.05
+        w_vocab_count = -0.1
         w_is_url = -1.0
         w_cmt_quality = 1.0
         for cmt in comment_objs:
