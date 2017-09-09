@@ -75,8 +75,9 @@ for line in fileinput.input():
         tag = fields[0]
         tokenized = fields[1].split()
         grammar = fields[2].split()
-        filtered = [tokenized[i] for i, pos in enumerate(grammar) if pos in available_pos]
-        print('{}\t{}'.format(tag, ' '.join(filtered)))
+        filtered = ' '.join([tokenized[i] for i, pos in enumerate(grammar) if pos in available_pos])
+        if bool(filtered.strip()):
+            print('{}\t{}'.format(tag, filtered))
 
     except:
         pass
