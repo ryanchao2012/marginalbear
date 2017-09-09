@@ -131,7 +131,7 @@ class PsqlIngestScript(PsqlQueryScript):
     update_title_quality_sql = '''
             UPDATE pttcorpus_title
             SET quality = %(quality)s
-            WHERE id = %(id_)s;
+            WHERE id = %(id_)s
             RETURNING (id, quality);
     '''
 
