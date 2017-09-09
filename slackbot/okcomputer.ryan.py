@@ -30,8 +30,11 @@ PsqlAbstract.set_database_info(
 config_parser = RawConfigParser()
 config_parser.read('slackbot_config.ini')
 
-## 請預先將主辦單位分發的 Bot token 設成環境變數，以避免放置在程式中有外流之疑慮
-bot.settings.API_TOKEN  = config_parser.get('okcomputer', 'token')
+topn = 15
+
+# 請預先將主辦單位分發的 Bot token設成環境變數，以避免放置在程式中有外流之疑慮
+
+bot.settings.API_TOKEN = config_parser.get('okcomputer', 'token')
 
 
 def algorithm(raw):
@@ -40,8 +43,16 @@ def algorithm(raw):
     words = [w for w in OpenCCTokenizer(JiebaTokenizer()).cut(query) if bool(w.word.strip())]
     comments = RetrievalEvaluate('ccjieba', pweight=JiebaPosWeight.weight, title_ranker=pos_idf_jaccard_similarity).retrieve(words)
     candidates = []
-    for i, cmt in enumerate(comments, 1):
-        candidates.append('[{}] <{:.2f}> {}'.format(i, cmt.score, cmt.body))
+    unique_cache = []
+    rank = 0
+    for cmt in comments:
+        if cmt.body not in unique_cache:
+            rank += 1
+            unique_cache.append(cmt.body)
+            candidates.append('[{}] <{:.2f}> {}'.format(rank, cmt.score, cmt.body))
+            if rank >= topn:
+                break
+
     reply = '\n'.join(candidates)
 
     return reply
