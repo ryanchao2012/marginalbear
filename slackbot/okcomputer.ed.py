@@ -9,6 +9,8 @@ from slackbot.bot import Bot
 from slackbot.bot import respond_to
 from slackbot.bot import listen_to
 
+from slackbot.redischannel import RedisChannel
+
 from collections import Counter
 
 # from bots import MessengerBot
@@ -23,8 +25,14 @@ vote_result_temp = []
 candidate_answers_temp = []
 sent_answer = []
 
+rc = RedisChannel()
+rc.subscribe('from_okcomputer')
 
-@listen_to(r'『問題』(.*)')
+bot = Bot(rc=rc)
+bot.run()
+client = bot._client
+
+@rc.listen_to(channel='from_pixnet')
 def receive_question(message, question_string):
 
     candidate_answers_temp.clear()
@@ -46,19 +54,27 @@ def receive_question(message, question_string):
     candidate_answers_string = "\n".join(temp)
     print(candidate_answers_string)
 
-    message.send("@edhsu says: 問題: {}\n\n答案選項:\n {}\n\n都幾!".format(question_string, candidate_answers_string))
+    client.rtm_read()
+    client.send_message('general', "問題: {}\n\n答案選項:\n {}\n\n都幾!".format(question_string, candidate_answers_string))
 
-    # Send default answer
-    time.sleep(3)
-    if len(vote_result_temp) < 1 and len(sent_answer) == 0:
-        default_answer = candidate_answers_temp[0].get('answer')
-        sent_answer.append(default_answer)
+    time.sleep(5)
 
-        """emit answer to pixnetbot"""
-        message.send('@edhsu says: Send Default Answer 選項[{}]: "{}"'.format(str(0+1), default_answer))
-        print("Send default_answer: {}".format(default_answer))
+    for pkg in client.rtm_read():
 
+        if 'channel' in pkg and pkg['type'] == 'message':
+            if client.channels[pkg['channel']]['name'] == 'general':
+                try:
+                    ans = int(pkg['text']) - 1
+                    if ans in range(len(candidate_answers_temp)):
+                        vote_result_temp.append(ans)
+                except ValueError:
+                    pass
 
+    result = Counter(vote_result_temp)
+
+    if len(result) > 0:
+        top1 = result.most_common(1)[0]
+        rc.send_to_channel('from_okcomputer', top1)
 
 
 def query_for_candidate_answers(question_string):
@@ -75,38 +91,43 @@ def query_for_candidate_answers(question_string):
 
     return answers
 
-
-@listen_to(r'([0-9]){1}')
+'''
+@listen_to(r'(\d{1,2})')
 def vote_for_candidate_answers(message, answer_number):
 
-    vote_result_temp.append(int(answer_number) - 1)
 
-    count = Counter()
-    for item in vote_result_temp:
-        count[item] += 1
 
-    leading_answer_index = count.most_common(1)[0][0]
-    leading_answer_count = count.most_common(1)[0][1]
-
-    if len(vote_result_temp) == 2 and len(sent_answer) == 0:
-        sent_answer.append(candidate_answers_temp[leading_answer_index].get('answer'))
-
-        """emit answer to pixnetbot"""
-        message.send('@edhsu says: Send Candidate Answer 選項[{}]: "{}" 票數+{}!!!'.format(str(leading_answer_index+1),
-                                                                                       candidate_answers_temp[leading_answer_index].get('answer'),
-                                                                                       str(leading_answer_count)))
-
-        print('[{}]: "{}"'.format(str(leading_answer_index+1), candidate_answers_temp[leading_answer_index].get('answer')))
+    if int(answer_number) - 1 in range(len(candidate_answers_temp)):
+        vote_result_temp.append(int(answer_number) - 1)
 
     else:
         pass
+'''
 
+'''
+for pkg in bot._client.rtm_read():
+    if 'channel' in pkg and pkg['type'] == 'message':
+        if bot._client.channels[pkg['channel']]['name'] == 'random':
+#             print(pkg)
+            print(pkg['text'])
+'''
 
-def main():
-    bot = Bot()
-    bot.run()
+'''
+# @listen_to(r'(\q{5})')
+def count_and_send_candidate_answers(message, stop_command):
 
+    result = Counter(vote_result_temp)
 
-if __name__ == '__main__':
-    main()
+    if len(result) == 0:
+        message.send("Final Answer: " + candidate_answers_temp[0].get('answer'))
+        rc.send_to_channel('from_okcomputer', candidate_answers_temp[0].get('answer'))
 
+    else:
+        # count result with max voted number, return it's index
+        best_answer_index = max(result, key=result.get)
+
+        # send answer
+        message.send("Final Answer: " + candidate_answers_temp[best_answer_index].get('answer'))
+        rc.send_to_channel('from_okcomputer', candidate_answers_temp[best_answer_index].get('answer'))
+
+'''
