@@ -44,6 +44,7 @@ def receive_question(message, question_string):
 @listen_to(r'qvocab (.*)')
 def update_vocab_quality(message, word_to_update):
     help_msg = 'Format error:\nCommand template is:\n`qvocab <word:str> <quality:float>`'
+    reply = ''
     data = word_to_update.split()
     if len(data) != 2:
         message.send(help_msg)
@@ -52,26 +53,49 @@ def update_vocab_quality(message, word_to_update):
             word = data[0].strip()
             quality = float(data[1])
             returning = ingester.update_vocab_quality(word, quality)
-            reply = 'Vocab updated: {}'.format(returning[0])
+            reply = 'Vocab quality updated: {}'.format(returning[0])
         except Exception as err:
             reply = 'Exception occurred:\n```{}```'.format(err)
         finally:
             message.send(reply)
 
 
-
-@listen_to(r'qtitle(.*)')
+@listen_to(r'qtitle (.*)')
 def update_title_quality(message, id_to_update):
-    ingester.update_title_quality(id_to_update)
-    response = feedback.query_title_quality_by_id(id_to_update)
-    message.send(response)
+    help_msg = 'Format error:\nCommand template is:\n`qtitle <word:str> <quality:float>`'
+    reply = ''
+    data = id_to_update.split()
+    if len(data) != 2:
+        message.send(help_msg)
+    else:
+        try:
+            id_ = data[0].strip()
+            quality = float(data[1])
+            returning = ingester.update_title_quality(id_, quality)
+            reply = 'Title quality updated: {}'.format(returning[0])
+        except Exception as err:
+            reply = 'Exception occurred:\n```{}```'.format(err)
+        finally:
+            message.send(reply)
 
 
-@listen_to(r'qcomment(.*)')
+@listen_to(r'qcomment (.*)')
 def update_comment_quality(message, id_to_update):
-    ingester.update_comment_quality(id_to_update)
-    response = feedback.query_comment_quality_by_id(id_to_update)
-    message.send(response)
+    help_msg = 'Format error:\nCommand template is:\n`qcomment <word:str> <quality:float>`'
+    reply = ''
+    data = id_to_update.split()
+    if len(data) != 2:
+        message.send(help_msg)
+    else:
+        try:
+            id_ = data[0].strip()
+            quality = float(data[1])
+            returning = ingester.update_comment_quality(id_, quality)
+            reply = 'Comment quality updated: {}'.format(returning[0])
+        except Exception as err:
+            reply = 'Exception occurred:\n```{}```'.format(err)
+        finally:
+            message.send(reply)
 
 
 def main():
