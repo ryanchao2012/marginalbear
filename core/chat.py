@@ -184,7 +184,6 @@ class RetrievalBase(PsqlQueryScript):
 
         return vocab, vschema
 
-    # @deprecated
     def query_vocab_quality_by_id(self, vocab_word):
         psql = PsqlQuery()
         vocab, vschema = psql.query_all(
@@ -192,11 +191,17 @@ class RetrievalBase(PsqlQueryScript):
         )
         return vocab, vschema
 
-    @deprecated
     def query_title_quality_by_id(self, title_id):
         psql = PsqlQuery()
         vocab, vschema = psql.query_all(
-            self.query_title_quality_by_id, (title_id,)
+            self.query_title_quality_by_id_sql, (title_id,)
+        )
+        return vocab, vschema
+
+    def query_comment_quality_by_id(self, comment_id):
+        psql = PsqlQuery()
+        vocab, vschema = psql.query_all(
+            self.query_comment_quality_by_id_sql, (comment_id,)
         )
         return vocab, vschema
 
@@ -204,7 +209,7 @@ class RetrievalBase(PsqlQueryScript):
     def query_comment_quality_by_id(self, comment_id):
         psql = PsqlQuery()
         vocab, vschema = psql.query_all(
-            self.query_comment_quality_by_id, (comment_id,)
+            self.query_comment_quality_by_id_sql, (comment_id,)
         )
         return vocab, vschema
 
