@@ -7,6 +7,7 @@ from core.utils import (
     QBag, Query,
     to_halfwidth,
     to_lower,
+    Title, Post, Vocab, Comment
 )
 from core.chat import RetrievalEvaluate
 from core.pipelines import OkPipeline
@@ -30,24 +31,38 @@ oklogger = OkLogger('evaluate', level=logging.INFO)
 oklogger2 = OkLogger('retrieve', level=logging.WARNING)
 
 
+file_out = 'eval0909.csv'
+
+
 query_post_sql = '''
     SELECT * FROM pttcorpus_post;
 '''
 query_title_sql = '''
-    SELECT * FROM pttcorpus_title WHERE post_id=%(pid)s AND tokenizer=%(tok)s;
+    SELECT * FROM pttcorpus_title WHERE tokenizer=%(tok)s;
 '''
 
 query_random_post_sql = '''
-    SELECT id FROM pttcorpus_post TABLESAMPLE SYSTEM(1);
+    SELECT id FROM pttcorpus_post WHERE tokenizer=%(tok)s TABLESAMPLE SYSTEM(1);
 '''
+
+
+draw_random_title_sql = '''
+    SELECT * FROM pttcorpus_title WHERE random() < 0.01 LIMIT 1;
+'''
+
+
+def draw_title():
+    psql = PsqlQuery()
+    title, schema = psql.query_all(draw_random_title_sql)
+
+    return title[0], schema
 
 
 def generate_random_post(ref):
     psql = PsqlQuery()
+    post = psql.query(query_random_post_sql, {'tok': 'ccjieba'})
 
-    posts = psql.query(query_random_post_sql)
-
-    return [p[0] for p in posts][:len(ref)]
+    return [p[0] for p in post][:len(ref)]
 
 
 def shuffle_comments(comments):
@@ -65,7 +80,7 @@ def extract_words(comments):
     return [extract(cmt) for cmt in comments]
 
 if __name__ == '__main__':
-    with open('eval0829.csv', 'w') as f:
+    with open(file_out, 'w') as f:
         f.write('random, base, pweight\n')
     psql = PsqlQuery()
     posts = psql.query(query_post_sql)
@@ -73,20 +88,23 @@ if __name__ == '__main__':
 
     valid_post = 0
 
-    for idx, p in enumerate(posts):
-        titles, tschema = psql.query_all(
-            query_title_sql, dict(pid=p[pschema['id']], tok='jieba')
-        )
+    for _ in range(5):
+
+        title, tschema = draw_title()
+
+        # titles, tschema = psql.query_all(
+        #     query_title_sql, dict(pid=p[pschema['id']], tok='jieba')
+        # )
 
         basic_retriever = RetrievalEvaluate(
-            'jieba',
-            excluded_post_ids=[p[pschema['id']]],
+            'ccjieba',
+            excluded_title_ids=[title[tschema['id']]],
             logger_name='retrieve'
         )
 
         pweight_retriever = RetrievalEvaluate(
-            'jieba',
-            excluded_post_ids=[p[pschema['id']]],
+            'ccjieba',
+            excluded_title_ids=[title[tschema['id']]],
             pweight=JiebaPosWeight.weight,
             logger_name='retrieve'
         )
@@ -95,8 +113,8 @@ if __name__ == '__main__':
             [
                 '{}:{}'.format(w, p)
                 for w, p in zip(
-                    titles[0][tschema['tokenized']].split(),
-                    titles[0][tschema['grammar']].split()
+                    title[tschema['tokenized']].split(),
+                    title[tschema['grammar']].split()
                 )
             ]
         )
@@ -106,16 +124,16 @@ if __name__ == '__main__':
             qbag, ['query.query'],
             [
                 ((['query.query'], ['query.topic_words']), SplitTokenizer(),),
-                ((['query.topic_words'], ['top_posts_basic']), basic_retriever.get_top_posts,),
-                ((['top_posts_basic'], ['top_comments_basic']), basic_retriever.get_top_comments,),
+                ((['query.topic_words'], ['top_titles_basic']), basic_retriever.get_top_titles,),
+                ((['top_titles_basic'], ['top_comments_basic']), basic_retriever.get_top_comments,),
                 ((['top_comments_basic'], ['predict_words_ls_basic']), extract_words,),
 
-                ((['query.topic_words'], ['top_posts_pweight']), pweight_retriever.get_top_posts,),
-                ((['top_posts_pweight'], ['top_comments_pweight']), pweight_retriever.get_top_comments,),
+                ((['query.topic_words'], ['top_titles_pweight']), pweight_retriever.get_top_titles,),
+                ((['top_titles_pweight'], ['top_comments_pweight']), pweight_retriever.get_top_comments,),
                 ((['top_comments_pweight'], ['predict_words_ls_pweight']), extract_words,),
 
-                ((['top_posts_basic'], ['random_post_id']), generate_random_post,),
-                ((['random_post_id'], ['random_comments', 'random_comment_ids']), basic_retriever.get_comment_obj),
+                ((['top_titles_basic'], ['random_post_id']), generate_random_post,),
+                ((['random_post_id'], ['random_comments']), basic_retriever.get_comment_obj),
                 ((['random_comments'], ['random_comments']), shuffle_comments),
                 ((['random_comments'], ['random_words_ls']), extract_words,),
 
@@ -126,7 +144,7 @@ if __name__ == '__main__':
             logger_name='evaluate'
         )
         pipe.run()
-        with open('eval0829.csv', 'a') as f:
+        with open(file_out, 'a') as f:
             f.write(
                 '{:.2f}, {:.2f}, {:.2f}\n'.format(
                     float(qbag.rand_ndcg_score.text),
@@ -136,6 +154,4 @@ if __name__ == '__main__':
             )
         # if idx > 5:
         #     break
-
-
 
