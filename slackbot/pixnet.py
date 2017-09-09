@@ -17,7 +17,8 @@ from core.tokenizer import (
     OpenCCTokenizer,
     JiebaPosWeight
 )
-
+default_response = ['上面答的你都不滿意喔??', '這種問題你google比較快']
+special_response = [('痞客邦', '痞客邦我知道喔 聽說今天有比賽')]
 rc = RedisChannel()
 rc.subscribe('from_okcomputer')
 rc.get_all_pkgs()
@@ -60,22 +61,36 @@ def algorithm(raw):
 
 @listen_to(r'^『問題』(.*)')
 def receive_question(message, question_string):
-    if message._client.users[message._get_user_id()][u'name'] == "pixbot":
-        candidates = algorithm(question_string)
-        package = {'query': question_string, 'candidates': candidates}
-        rc.send_to_channel('from_pixnet', package)
-    for _ in range(10):
-        ok_ans = rc.get_channel_data('from_okcomputer', wait=False)
-        if ok_ans is None:
-            time.sleep(1)
-        else:
-            break
+    if message._client.users[message._get_user_id()][u'name'] == "pixbot" or True:
 
-    if ok_ans is None:
+        for r in special_response:
+            if r[0] in question_string:
+                message.send(r[1])
+                return ''
+        try:
+            candidates = algorithm(question_string)
+        except Exception as err:
+            message.send(random.choice(default_response))
+            return ''
+        package = {'query': question_string, 'candidates': candidates}
+        rc.get_all_pkgs()
+        rc.send_to_channel('from_pixnet', package)
+
+        for _ in range(15):
+            ok_ans = rc.get_channel_data('from_okcomputer', wait=False)
+            if ok_ans is None:
+                time.sleep(1)
+            else:
+                break
         pixnet_ans = random.choice(candidates[:1])['answer']
-        message.send(pixnet_ans)
-    else:
-        message.send(ok_ans)
+        if ok_ans is None:
+            message.send(pixnet_ans)
+        else:
+            try:
+                message.send(ok_ans)
+            except Exception as err:
+                print(ok_ans, type(ok_ans))
+                message.send(pixnet_ans)
 
 
 def main():
