@@ -130,14 +130,16 @@ class PsqlIngestScript(PsqlQueryScript):
 
     update_title_quality_sql = '''
             UPDATE pttcorpus_title
-            SET quality = -1.0
-            WHERE id = %(id_)s;
+            SET quality = %(quality)s
+            WHERE id = %(id_)s
+            RETURNING (id, quality);
     '''
 
     update_comment_quality_sql = '''
             UPDATE pttcorpus_comment
-            SET quality = -1.0
-            WHERE id = %(id_)s;
+            SET quality = %(quality)s
+            WHERE id = %(id_)s
+            RETURNING (id, quality);
     '''
 
     insert_netizen_sql = '''
@@ -423,18 +425,19 @@ class PsqlIngester(PsqlIngestScript):
             {'word': word, 'quality': quality}
         )
 
-    def update_title_quality(self, id_to_update):
+    def update_title_quality(self, id_to_update, quality):
         psql = PsqlQuery()
-        psql.update(
+
+        return psql.upsert(
             self.update_title_quality_sql,
-            {'id_': id_to_update}
+            {'id_': id_to_update, 'quality': quality}
         )
 
-    def update_comment_quality(self, id_to_update):
+    def update_comment_quality(self, id_to_update, quality):
         psql = PsqlQuery()
-        psql.update(
+        return psql.upsert(
             self.update_comment_quality_sql,
-            {'id_': id_to_update}
+            {'id_': id_to_update, 'quality': quality}
         )
 
 
