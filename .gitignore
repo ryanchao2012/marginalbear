@@ -16,3 +16,4 @@ pokearound/
 *.swp
 .cache
 *.xml
+*model*
