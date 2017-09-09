@@ -53,7 +53,7 @@ def update_vocab_quality(message, word_to_update):
             word = data[0].strip()
             quality = float(data[1])
             returning = ingester.update_vocab_quality(word, quality)
-            reply = 'Vocab updated: {}'.format(returning[0])
+            reply = 'Vocab quality updated: {}'.format(returning[0])
         except Exception as err:
             reply = 'Exception occurred:\n```{}```'.format(err)
         finally:
@@ -72,7 +72,7 @@ def update_title_quality(message, id_to_update):
             id_ = data[0].strip()
             quality = float(data[1])
             returning = ingester.update_title_quality(id_, quality)
-            reply = 'Vocab updated: {}'.format(returning[0])
+            reply = 'Title quality updated: {}'.format(returning[0])
         except Exception as err:
             reply = 'Exception occurred:\n```{}```'.format(err)
         finally:
@@ -91,7 +91,7 @@ def update_comment_quality(message, id_to_update):
             id_ = data[0].strip()
             quality = float(data[1])
             returning = ingester.update_comment_quality(id_, quality)
-            reply = 'Vocab updated: {}'.format(returning[0])
+            reply = 'Comment quality updated: {}'.format(returning[0])
         except Exception as err:
             reply = 'Exception occurred:\n```{}```'.format(err)
         finally:
