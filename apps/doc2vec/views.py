@@ -1,4 +1,4 @@
-# from django.shortcuts import render
+# import django.shortcuts import render
 from django.http import HttpResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
@@ -10,7 +10,7 @@ from gensim.models.doc2vec import Doc2Vec
 # Create your views here.
 oklogger = OkLogger('doc2vec.api')
 
-d2v_path = '/var/local/okbot/doc2vec/tok2push2.model'
+d2v_path = '/var/local/marginalbear/doc2vec/title2comment.model'
 
 
 oklogger.logger.info('Loading doc2vec model...')
