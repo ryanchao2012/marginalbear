@@ -29,53 +29,62 @@ rc = RedisChannel()
 rc.subscribe('from_okcomputer')
 
 bot = Bot(rc=rc)
-bot.run()
 client = bot._client
 
 @rc.listen_to(channel='from_pixnet')
-def receive_question(message, question_string):
+def receive_question(question_candidates):
 
     candidate_answers_temp.clear()
     vote_result_temp.clear()
     sent_answer.clear()
 
     # get candidate answer with query
-    candidate_answers = query_for_candidate_answers(question_string)
-    print(question_string)
-
-    for item in candidate_answers:
+    # candidate_answers = query_for_candidate_answers(question_string)
+    print(question_candidates)
+    print(question_candidates.get('query'))
+    print(question_candidates.get('candidates'))
+    # query candidates
+    
+    for item in question_candidates.get('candidates'):
         candidate_answers_temp.append(item)
 
     temp = []
-    for item in candidate_answers:
-        answer_string = "[{}]\t<{}>\t{}".format(item.get('rank'), str(item.get('score')), item.get('answer'))
+    for item in candidate_answers_temp:
+        answer_string = "[{}]\t{}\t{}".format(item.get('rank'), str(round(item.get('score'), 2)), item.get('answer'))
         temp.append(answer_string)
 
     candidate_answers_string = "\n".join(temp)
     print(candidate_answers_string)
 
     client.rtm_read()
-    client.send_message('general', "問題: {}\n\n答案選項:\n {}\n\n都幾!".format(question_string, candidate_answers_string))
+    client.send_message('general', "問題: {}\n\n答案選項:\n {}\n\n都幾!".format(question_candidates.get('query'), candidate_answers_string))
 
-    time.sleep(5)
+    time.sleep(8)
 
     for pkg in client.rtm_read():
 
         if 'channel' in pkg and pkg['type'] == 'message':
             if client.channels[pkg['channel']]['name'] == 'general':
                 try:
-                    ans = int(pkg['text']) - 1
+                    ans = int(pkg['text'])
                     if ans in range(len(candidate_answers_temp)):
                         vote_result_temp.append(ans)
                 except ValueError:
                     pass
 
     result = Counter(vote_result_temp)
+    client.send_message('general', f'{result.most_common(5)}')
 
     if len(result) > 0:
-        top1 = result.most_common(1)[0]
+        top1 = result.most_common(1)[0][0]
+        cands = question_candidates['candidates']
+        top1 = cands[top1-1]['answer']
+        print(top1)
+        print(type(top1))
+        client.send_message('general', top1 + '\n')
         rc.send_to_channel('from_okcomputer', top1)
 
+'''
 
 def query_for_candidate_answers(question_string):
 
@@ -90,6 +99,8 @@ def query_for_candidate_answers(question_string):
     ]
 
     return answers
+
+'''
 
 '''
 @listen_to(r'(\d{1,2})')
@@ -131,3 +142,5 @@ def count_and_send_candidate_answers(message, stop_command):
         rc.send_to_channel('from_okcomputer', candidate_answers_temp[best_answer_index].get('answer'))
 
 '''
+rc.get_all_pkgs()
+bot.run()
