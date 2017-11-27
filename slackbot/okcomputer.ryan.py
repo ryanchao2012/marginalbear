@@ -7,11 +7,11 @@ from configparser import RawConfigParser
 from slackbot.bot import Bot
 from slackbot.bot import respond_to
 from slackbot.bot import listen_to
-from core.ranking import pos_idf_jaccard_similarity
+from marginalbear.core.ranking import pos_idf_jaccard_similarity
 from configparser import RawConfigParser
-from core.utils import PsqlAbstract, clean_query
-from core.chat import RetrievalEvaluate
-from core.tokenizer import (
+from marginalbea.rcore.utils import PsqlAbstract, clean_query
+from marginalbear.core.chat import RetrievalEvaluate
+from marginalbear.core.tokenizer import (
     JiebaTokenizer,
     OpenCCTokenizer,
     JiebaPosWeight

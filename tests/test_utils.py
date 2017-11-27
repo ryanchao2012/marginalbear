@@ -1,4 +1,4 @@
-from core.utils import (
+from marginalbear.core.utils import (
     rm_repeat,
     to_halfwidth
 )

@@ -1,5 +1,5 @@
 import pytest
-from core.pipelines import OkPipeline
+from marginalbear.core.pipelines import OkPipeline
 
 
 class Foo:

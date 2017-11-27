@@ -1,7 +1,11 @@
+from init import (
+    dbuser, dbname, dbpassword,
+    line_channel_secret
+)
+
 import re
 import numpy as np
-from configparser import RawConfigParser
-from core.utils import (
+from marginalbear.core.utils import (
     PsqlAbstract,
     PsqlQuery,
     OkLogger
@@ -12,18 +16,11 @@ import json
 import logging
 
 
-config_parser = RawConfigParser()
-config_parser.read('../config.ini')
-
 PsqlAbstract.set_database_info(
-    config_parser.get('global', 'dbuser'),
-    config_parser.get('global', 'dbname'),
-    config_parser.get('global', 'dbpassword')
+    dbuser, dbname, dbpassword
 )
 
-
 oklogger = OkLogger('crawlparser')
-
 
 upsert_post_sql = '''
     INSERT INTO pttcrawler_post(url, author,
@@ -123,23 +120,23 @@ class CrawlPostParser(BatchParser):
             )
             return {}
 
-if __name__ == '__main__':
-    start = time.time()
-    post_parser = CrawlPostParser(
-        '/var/local/marginalbear/data/okbot.spider.20170903_to_20170419.reverse.jsonline'
-    )
-
-    consumed = 0
-    posts = 0
-    for batch_post in post_parser.batch_parse(batch_size=1000):
-        if len(batch_post) > 0:
-            post_id = upsert_post(batch_post)
-            consumed += len(batch_post)
-            posts += len(post_id)
-            oklogger.logger.info(
-                '{} lines are ingested, posts: {}'.format(
-                    consumed, posts
-                )
-            )
-
-    print('Elapsed time @post: {:.2f}sec.'.format(time.time() - start))
+# if __name__ == '__main__':
+#     start = time.time()
+#     post_parser = CrawlPostParser(
+#         '/var/local/marginalbear/data/okbot.spider.20170903_to_20170419.reverse.jsonline'
+#     )
+# 
+#     consumed = 0
+#     posts = 0
+#     for batch_post in post_parser.batch_parse(batch_size=1000):
+#         if len(batch_post) > 0:
+#             post_id = upsert_post(batch_post)
+#             consumed += len(batch_post)
+#             posts += len(post_id)
+#             oklogger.logger.info(
+#                 '{} lines are ingested, posts: {}'.format(
+#                     consumed, posts
+#                 )
+#             )
+# 
+#     print('Elapsed time @post: {:.2f}sec.'.format(time.time() - start))

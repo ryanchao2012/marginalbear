@@ -4,6 +4,7 @@
 db.*
 data/
 build/
+deprecated/
 .ipynb_checkpoints/
 __pycache__/
 migrations/
