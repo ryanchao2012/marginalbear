@@ -1,8 +1,10 @@
-from init import (
-    dbuser, dbname, dbpassword,
-    line_channel_secret
-)
+#!/usr/bin/env python
 
+from settings import (
+    dbuser, dbname, dbpassword,
+)
+import sys
+import getopt
 import re
 import numpy as np
 from marginalbear.core.utils import (
@@ -120,23 +122,41 @@ class CrawlPostParser(BatchParser):
             )
             return {}
 
-# if __name__ == '__main__':
-#     start = time.time()
-#     post_parser = CrawlPostParser(
-#         '/var/local/marginalbear/data/okbot.spider.20170903_to_20170419.reverse.jsonline'
-#     )
-# 
-#     consumed = 0
-#     posts = 0
-#     for batch_post in post_parser.batch_parse(batch_size=1000):
-#         if len(batch_post) > 0:
-#             post_id = upsert_post(batch_post)
-#             consumed += len(batch_post)
-#             posts += len(post_id)
-#             oklogger.logger.info(
-#                 '{} lines are ingested, posts: {}'.format(
-#                     consumed, posts
-#                 )
-#             )
-# 
-#     print('Elapsed time @post: {:.2f}sec.'.format(time.time() - start))
+
+def help(exitcode=0):
+    print('Usgae:')
+    print('python crawler2marginalbear.py -i <inputfile>')
+    sys.exit(exitcode)
+
+
+if __name__ == '__main__':
+    inputfile = ''
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hi:", ["ifile="])
+    except getopt.GetoptError as err:
+        help(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            help()
+        elif opt in ("-i", "--ifile"):
+            inputfile = arg
+    if not bool(inputfile):
+        help()
+
+    start = time.time()
+    post_parser = CrawlPostParser(inputfile)
+
+    consumed = 0
+    posts = 0
+    for batch_post in post_parser.batch_parse(batch_size=1000):
+        if len(batch_post) > 0:
+            post_id = upsert_post(batch_post)
+            consumed += len(batch_post)
+            posts += len(post_id)
+            oklogger.logger.info(
+                '{} lines are ingested, posts: {}'.format(
+                    consumed, posts
+                )
+            )
+
+    print('Elapsed time @post: {:.2f}sec.'.format(time.time() - start))

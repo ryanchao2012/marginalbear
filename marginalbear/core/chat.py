@@ -5,15 +5,13 @@ import random
 import numpy as np
 import logging
 from collections import Counter
-from core.ranking import jaccard_similarity
+from .ranking import jaccard_similarity
 from .utils import (
-    OkLogger, Vocab, Post, Comment, Title, Word
-)
-
-from core.utils import (
+    OkLogger, Vocab, Post, Comment, Title, Word,
     PsqlQuery, PsqlQueryScript,
     deprecated
 )
+
 
 # from linebot import LineBotApi, WebhookParser
 # from linebot.exceptions import InvalidSignatureError, LineBotApiError
@@ -614,8 +612,8 @@ class RetrievalEvaluate(RetrievalBase):
         cmt_score = []
         w_docfreq = 2.0
         w_title_sim_score = 1.0
-        w_vocab_count = -0.1
-        w_is_url = -1.0
+        w_vocab_count = 0.2
+        w_is_url = 10.0
         w_cmt_quality = 1.0
         for cmt in comment_objs:
             doc_score = sum([

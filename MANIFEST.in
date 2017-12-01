@@ -1,4 +1,4 @@
-include README LICENSE DESCRIPTION
+include README.md LICENSE DESCRIPTION
 global-exclude *pyc
 recursive-exclude __pycache__ *
 

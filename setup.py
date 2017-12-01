@@ -22,7 +22,7 @@ setup(
     name=__project__,
     version=__version__,
     description=_read('DESCRIPTION'),
-    long_description=_read('README'),
+    long_description=_read('README.md'),
     license=__license__,
     author=__author__,
     author_email=__email__,

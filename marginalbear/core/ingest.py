@@ -3,7 +3,7 @@ import collections
 import itertools as it
 import math
 from datetime import datetime
-from core.utils import (
+from .utils import (
     PsqlQuery, PsqlQueryScript,
     LengthNotMatchException
 )

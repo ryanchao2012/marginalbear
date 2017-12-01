@@ -18,3 +18,5 @@ pokearound/
 .cache
 *.xml
 *model*
+*egg-info/
+dist/
