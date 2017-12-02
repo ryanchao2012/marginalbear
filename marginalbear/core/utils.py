@@ -505,8 +505,9 @@ def aggregate_comment(comment_string):
         appendcomment = []
         line = -10
         for cmt in allcomment['comment']:
+            contain, _ = contain_url(cmt['content'])
 
-            if (cmt['line'] - line) < 2:
+            if (cmt['line'] - line) < 2 and not contain:
                 appendcomment[-1]['comment'] += cmt['content']
 
             else:
