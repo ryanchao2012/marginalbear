@@ -7,7 +7,7 @@ from flask import (
 )
 
 from marginalbear.core.chat import RetrievalEvaluate
-from marginalbear.core.utils import pos_idf_jaccard_similarity
+from marginalbear.core.ranking import pos_idf_jaccard_similarity
 from marginalbear.core.tokenizer import JiebaPosWeight
 
 from linebot import LineBotApi, WebhookParser
@@ -18,18 +18,17 @@ from linebot.models import (
     TextMessage, TextSendMessage, UnfollowEvent,
 )
 
-from .bots import LineBot
-
+from bots import LineBot
+from settings import (
+    line_webhook_parser,
+    line_bot_api,
+    slack_webhook
+)
 
 app = Flask(__name__)
 
 
-line_bot_api = LineBotApi(os.environ['LINE_CHANNEL_ACCESS_TOKEN'])
-line_webhook_parser = WebhookParser(os.environ['LINE_CHANNEL_SECRET'])
-SLACK_WEBHOOK = os.environ['SLACK_WEBHOOK']
-
-
-@app.route('/linecallback', method=['POST'])
+@app.route('/linecallback', methods=['POST'])
 def line_webhook():
     signature = request.META['HTTP_X_LINE_SIGNATURE']
     body = request.body.decode('utf-8')
@@ -47,9 +46,9 @@ def line_webhook():
                 try:
                     query = event.message.text
                     utype, uid = _user_id(event.source)
-                    RetrievalEvaluate('ccjieba', pweight=JiebaPosWeight.weight, title_ranker=pos_idf_jaccard_similarity)
-                    bot = LineBot(query, 'line', uid, utype)
-                    reply, state_code = bot.retrieve()
+                    retriever = RetrievalEvaluate('ccjieba', pweight=None, title_ranker=pos_idf_jaccard_similarity)
+                    bot = LineBot(retriever, uid, utype)
+                    reply, state_code = bot.retrieve(query)
                     if bool(reply):
                         line_bot_api.reply_message(
                             event.reply_token,
@@ -122,3 +121,7 @@ def _user_id(source):
         utype = 'room'
         uid = source.room_id
     return utype, uid
+
+
+if __name__ == "__main__":
+    app.run(host='localhost')

@@ -11,6 +11,7 @@ from linebot.exceptions import LineBotApiError
 
 from settings import (
     dbuser, dbname, dbpassword,
+    line_bot_api, line_webhook_parser, slack_webhook,
     config_parser
 )
 
@@ -22,8 +23,8 @@ class LineBot:
     code_leave = 1
     code_normal = 0
     topn = 15
-    line_bot_api = LineBotApi(os.environ['LINE_CHANNEL_ACCESS_TOKEN'])
-    line_webhook_parser = WebhookParser(os.environ['LINE_CHANNEL_SECRET'])
+    line_bot_api = line_bot_api 
+    line_webhook_parser = line_webhook_parser 
 
     kickout_key = ['滾喇', '滾', '邊緣熊袞']
     kickout_response = ['掰掰']
