@@ -30,8 +30,9 @@ app = Flask(__name__)
 
 @app.route('/linecallback', methods=['POST'])
 def line_webhook():
-    signature = request.META['HTTP_X_LINE_SIGNATURE']
-    body = request.body.decode('utf-8')
+    signature = request.headers['X_LINE_SIGNATURE']
+    body = request.get_data(as_text=True)
+    # body = request.body.decode('utf-8')
 
     try:
         events = line_webhook_parser.parse(body, signature)
@@ -46,7 +47,7 @@ def line_webhook():
                 try:
                     query = event.message.text
                     utype, uid = _user_id(event.source)
-                    retriever = RetrievalEvaluate('ccjieba', pweight=None, title_ranker=pos_idf_jaccard_similarity)
+                    retriever = RetrievalEvaluate('ccjieba', pweight=JiebaPosWeight.weight, title_ranker=pos_idf_jaccard_similarity)
                     bot = LineBot(retriever, uid, utype)
                     reply, state_code = bot.retrieve(query)
                     if bool(reply):
@@ -58,7 +59,7 @@ def line_webhook():
 
                         slack_log = 'query: {}, reply: {}'.format(query, reply) + '\n====================\n'
                         data = '{"text": \"' + slack_log + '\"}'
-                        requests.post(SLACK_WEBHOOK, headers={'Content-type': 'application/json'}, data=data.encode('utf8'))
+                        requests.post(slack_webhook, headers={'Content-type': 'application/json'}, data=data.encode('utf8'))
 
                     if state_code == LineBot.code_leave:
                         bot.leave()
